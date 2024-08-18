@@ -1,15 +1,8 @@
-use std::sync::Arc;
-
-use vulkano::{pipeline::{compute::ComputePipelineCreateInfo, layout::{PipelineDescriptorSetLayoutCreateInfo, PipelineLayoutCreateInfo}, ComputePipeline, PipelineLayout, PipelineShaderStageCreateInfo}, shader::ShaderModule};
-
-use super::Vk;
-
 pub mod compute_shaders {
     use std::sync::Arc;
-
     use vulkano::{buffer::{BufferContents, Subbuffer}, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{compute::ComputePipelineCreateInfo, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}};
 
-    use crate::{buffer::VkIterBuffer, Vk};
+    use crate::Vk;
 
     vulkano_shaders::shader!{
         ty: "compute",

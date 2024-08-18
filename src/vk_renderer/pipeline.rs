@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{buffer::BufferContents, descriptor_set::PersistentDescriptorSet, pipeline::{compute::ComputePipelineCreateInfo, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, shader::ShaderModule};
+use vulkano::{buffer::BufferContents, descriptor_set::PersistentDescriptorSet, pipeline::{ComputePipeline, Pipeline}};
 
 use super::{buffer::VkIterBuffer, command::{submit_cmd_buf, VkBuilder}, shaders::compute_shaders, Vk};
 
