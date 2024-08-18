@@ -15,7 +15,7 @@ type CommandBufferType = Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferA
 
 impl VkBuilder {
     /// Command buffer builder made only for submitting once
-    pub fn new_once(vk: &mut Vk) -> Self {
+    pub fn new_once(vk: Arc<Vk>) -> Self {
         let builder = AutoCommandBufferBuilder::primary(
             &vk.allocators.command.clone(), 
             vk.queue_family_index, 
@@ -32,7 +32,7 @@ impl VkBuilder {
     }
 }
 
-pub fn submit_cmd_buf(vk: &mut Vk, cmd_buf: CommandBufferType) -> FenceSignalFuture<CommandBufferExecFuture<NowFuture>> {
+pub fn submit_cmd_buf(vk: Arc<Vk>, cmd_buf: CommandBufferType) -> FenceSignalFuture<CommandBufferExecFuture<NowFuture>> {
     sync::now(vk.device.clone())
         .then_execute(vk.queue.clone(), cmd_buf)
         .unwrap()

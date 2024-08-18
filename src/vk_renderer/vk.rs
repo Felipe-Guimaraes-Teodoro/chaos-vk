@@ -2,23 +2,35 @@
 use std::sync::Arc;
 
 use vulkano::command_buffer::allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo};
+use vulkano::descriptor_set::allocator::{DescriptorSetAllocator, StandardDescriptorSetAllocator};
 use vulkano::device::{Device, DeviceCreateInfo, Queue, QueueCreateInfo, QueueFlags};
 use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::VulkanLibrary;
 use vulkano::instance::{Instance, InstanceCreateInfo};
 
-use super::buffer::_example_operation;
+use super::buffer::{VkIterBuffer, _example_operation};
+use super::pipeline::VkComputePipeline;
 pub struct MemAllocators {
     pub memory: Arc<StandardMemoryAllocator>,
     pub command: Arc<StandardCommandBufferAllocator>,
+    pub descriptor_set: Arc<StandardDescriptorSetAllocator>,
 }
 
 impl MemAllocators {
     pub fn new(device: Arc<Device>) -> Self {
         Self {
-            memory: Arc::new(StandardMemoryAllocator::new_default(device.clone())),
+            memory: Arc::new(
+                StandardMemoryAllocator::new_default(device.clone())
+            ),
             command: Arc::new(StandardCommandBufferAllocator::new(
-                device.clone(), StandardCommandBufferAllocatorCreateInfo::default())
+                    device.clone(), 
+                    StandardCommandBufferAllocatorCreateInfo::default()
+                )
+            ),
+            descriptor_set: Arc::new(StandardDescriptorSetAllocator::new(
+                    device.clone(), 
+                    Default::default()
+                )
             ),
         }
     }
@@ -85,7 +97,10 @@ impl Vk {
 }
 
 pub fn test() {
-    let mut vk = Vk::new();
+    let vk = Arc::new(Vk::new());
 
-    _example_operation(&mut vk);
+    _example_operation(vk.clone());
+
+    let mut pipeline = VkComputePipeline::<u32>::new(vk.clone(), VkIterBuffer::storage(vk.allocators.clone(), 0..65536u32));
+    pipeline.dispatch();
 }

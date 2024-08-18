@@ -26,7 +26,7 @@ fn _example_fn(allocators: Arc<MemAllocators>) {
     let _read = example_buffer.content.read().unwrap();
 }
 
-pub fn _example_operation(vk: &mut Vk) {
+pub fn _example_operation(vk: Arc<Vk>) {
     let source_content: Vec<i32> = (0..64).collect();
     let source = Buffer::from_iter(
         vk.allocators.memory.clone(),
@@ -59,7 +59,7 @@ pub fn _example_operation(vk: &mut Vk) {
     )
     .expect("failed to create destination buffer");
 
-    let mut builder = VkBuilder::new_once(vk);
+    let mut builder = VkBuilder::new_once(vk.clone());
     builder.0
         .copy_buffer(CopyBufferInfo::buffers(source.clone(), destination.clone()))
         .unwrap();
@@ -111,7 +111,7 @@ pub struct VkIterBuffer<T: BufferContents> {
 }
 
 impl<T: BufferContents> VkIterBuffer<T> {
-    pub fn new<I>(allocators: Arc<MemAllocators>, iter_data: I) -> Self 
+    pub fn uniform<I>(allocators: Arc<MemAllocators>, iter_data: I) -> Self 
     where 
         T: BufferContents,
         I: Iterator<Item = T> + ExactSizeIterator
@@ -120,6 +120,31 @@ impl<T: BufferContents> VkIterBuffer<T> {
             allocators.memory.clone(),
             BufferCreateInfo {
                 usage: BufferUsage::UNIFORM_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE, // MemoryTypeFilter::HOST_RANDOM_ACCESS is more suitable if data is being written continuously to this buffer
+                ..Default::default()
+            },
+            iter_data,
+        )
+        .expect("failed to create buffer");
+
+        Self {
+            content: buffer,
+        }
+    }
+
+    pub fn storage<I>(allocators: Arc<MemAllocators>, iter_data: I) -> Self 
+    where 
+        T: BufferContents,
+        I: Iterator<Item = T> + ExactSizeIterator
+    {
+        let buffer = Buffer::from_iter(
+            allocators.memory.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::STORAGE_BUFFER,
                 ..Default::default()
             },
             AllocationCreateInfo {
