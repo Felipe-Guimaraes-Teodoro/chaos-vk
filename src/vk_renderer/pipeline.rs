@@ -1,44 +1,50 @@
 use std::sync::Arc;
 
-use vulkano::{buffer::BufferContents, descriptor_set::PersistentDescriptorSet, pipeline::{ComputePipeline, Pipeline}};
+use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{ComputePipeline, Pipeline}};
 
-use super::{buffer::VkIterBuffer, command::{submit_cmd_buf, VkBuilder}, shaders::compute_shaders, Vk};
+use super::{command::{submit_cmd_buf, VkBuilder}, shaders::compute_shaders, Vk};
 
 
 /*
-    CURRENTLY SET AS AN EXAMPLE COMPUTE PIPELINE
+    CURRENTLY SET AS A SIMPLE COMPUTE PIPELINE
 */
-pub struct VkComputePipeline<I: BufferContents> {
+pub struct VkComputePipeline {
     pub vk: Arc<Vk>,
-    pub data_buffer: VkIterBuffer<I>,
     pub compute_pipeline: Option<Arc<ComputePipeline>>,
     pub descriptor_set: Option<Arc<PersistentDescriptorSet>>,
     pub descriptor_set_layout_index: Option<usize>,
 }
 
-impl VkComputePipeline<u32> {
+impl VkComputePipeline {
     pub fn new(
         vk: Arc<Vk>,
-        data_buffer: VkIterBuffer<u32>,
     ) -> Self {
         let compute_pipeline = compute_shaders::compute_pipeline(vk.clone());
-        let (descriptor_set, dc_layout_idx) = compute_shaders::descriptor_set(
-            vk.clone(), 
-            compute_pipeline.clone(),
-            data_buffer.content.clone()
-        );
+
+        // moved descriptor set initialization to it's dedicated fn
 
         Self {
             vk,
-            data_buffer,
             compute_pipeline: Some(compute_pipeline),
-            descriptor_set: Some(descriptor_set),
-            descriptor_set_layout_index: Some(dc_layout_idx),
+            descriptor_set: None,
+            descriptor_set_layout_index: None,
         }
     }
 
+    pub fn set_descriptor_set_writes(
+        &mut self, writes: impl IntoIterator<Item = WriteDescriptorSet>,
+    ) {
+        let (descriptor_set, dc_layout_idx) = compute_shaders::descriptor_set(
+            self.vk.clone(), 
+            self.compute_pipeline.clone().unwrap(),
+            writes,
+        );
+
+        self.descriptor_set = Some(descriptor_set);
+        self.descriptor_set_layout_index = Some(dc_layout_idx);
+    }
+
     pub fn dispatch(&mut self) {
-        // let command_buffer_allocator = self.vk.allocators.command.clone();
         let mut builder = VkBuilder::new_once(self.vk.clone());
         let workgroup_counts = [1024, 1, 1];
 
@@ -58,16 +64,18 @@ impl VkComputePipeline<u32> {
         let cmd_buf = builder.0.build().unwrap();
         
         let future = submit_cmd_buf(self.vk.clone(), cmd_buf);
-        future.wait(None).unwrap();
-
+                                    // Maybe instead return the future here, instead of submitting it
+        future.wait(None).unwrap(); // SUBMITTED ANYWAY!
+        
         /*
             TESTING
          */
-        let content = self.data_buffer.content.read().unwrap();
-        for (n, val) in content.iter().enumerate() {
-            assert_eq!(*val, n as u32 * 12);
-        }
 
-        println!("Everything succeeded!");
+        // let content = self.data_buffer.content.read().unwrap();
+        // for (n, val) in content.iter().enumerate() {
+        //     assert_eq!(*val, n as u32 * 12);
+        // }
+
+        // println!("Everything succeeded!");
     }
 }

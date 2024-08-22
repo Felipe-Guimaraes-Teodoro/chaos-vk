@@ -124,7 +124,7 @@ impl<T: BufferContents> VkIterBuffer<T> {
             },
             AllocationCreateInfo {
                 memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE, // MemoryTypeFilter::HOST_RANDOM_ACCESS is more suitable if data is being written continuously to this buffer
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                 ..Default::default()
             },
             iter_data,
@@ -149,7 +149,32 @@ impl<T: BufferContents> VkIterBuffer<T> {
             },
             AllocationCreateInfo {
                 memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE, // MemoryTypeFilter::HOST_RANDOM_ACCESS is more suitable if data is being written continuously to this buffer
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            iter_data,
+        )
+        .expect("failed to create buffer");
+
+        Self {
+            content: buffer,
+        }
+    }
+
+    pub fn transfer_dst<I>(allocators: Arc<MemAllocators>, iter_data: I) -> Self 
+    where 
+        T: BufferContents,
+        I: Iterator<Item = T> + ExactSizeIterator
+    {
+        let buffer = Buffer::from_iter(
+            allocators.memory.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::TRANSFER_DST,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_HOST
+                    | MemoryTypeFilter::HOST_RANDOM_ACCESS,
                 ..Default::default()
             },
             iter_data,

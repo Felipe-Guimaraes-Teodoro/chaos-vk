@@ -1,6 +1,6 @@
 pub mod compute_shaders {
     use std::sync::Arc;
-    use vulkano::{buffer::{BufferContents, Subbuffer}, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{compute::ComputePipelineCreateInfo, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}};
+    use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{compute::ComputePipelineCreateInfo, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}};
 
     use crate::Vk;
 
@@ -24,7 +24,7 @@ pub mod compute_shaders {
 
     pub fn compute_pipeline(vk: Arc<Vk>) -> Arc<ComputePipeline> {
         let shader = load(vk.device.clone())
-        .expect("failed to create shader module");
+            .expect("failed to create shader module");
 
         let compute_shader = shader.entry_point("main").unwrap();
         let stage = PipelineShaderStageCreateInfo::new(compute_shader);
@@ -44,10 +44,10 @@ pub mod compute_shaders {
         .expect("failed to create compute pipeline")
     }
 
-    pub fn descriptor_set<I: BufferContents>(
+    pub fn descriptor_set(
         vk: Arc<Vk>, 
         compute_pipeline: Arc<ComputePipeline>,
-        content: Subbuffer<[I]>,
+        writes: impl IntoIterator<Item = WriteDescriptorSet>,
     ) -> (Arc<PersistentDescriptorSet>, usize) {
         let descriptor_set_allocator = vk.allocators.descriptor_set.clone();
         let pipeline_layout = compute_pipeline.layout();
@@ -60,7 +60,7 @@ pub mod compute_shaders {
         (PersistentDescriptorSet::new(
             &descriptor_set_allocator,
             descriptor_set_layout.clone(),
-            [WriteDescriptorSet::buffer(0, content)], // 0 is the binding
+            writes,
             [],
         )
         .unwrap(), descriptor_set_layout_index)
