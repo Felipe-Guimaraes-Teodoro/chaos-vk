@@ -7,10 +7,14 @@ use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::device::{Device, DeviceCreateInfo, Queue, QueueCreateInfo, QueueFlags};
 use vulkano::format::{ClearColorValue, Format};
+use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
+use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use vulkano::VulkanLibrary;
 use vulkano::instance::{Instance, InstanceCreateInfo};
+
+use crate::shaders::compute_shaders::RESOLUTION;
 
 use super::buffer::{VkIterBuffer, _example_operation};
 use super::command::{submit_cmd_buf, VkBuilder};
@@ -108,29 +112,21 @@ pub fn test() {
 
     /* example pipeline testing */
 
-    let buffer = VkIterBuffer::storage(vk.allocators.clone(), 0..65536u32);
-    let mut pipeline = VkComputePipeline::new(vk.clone());
-    pipeline.set_descriptor_set_writes([WriteDescriptorSet::buffer(0, buffer.content.clone())]);
-    pipeline.dispatch();
-
-    let content = buffer.content.read().unwrap();
-    for (n, val) in content.iter().enumerate() {
-        assert_eq!(*val, n as u32 * 12);
-    }
+    // let buffer = VkIterBuffer::storage(vk.allocators.clone(), 0..65536u32);
+    mandelbrot_image(vk);
 
     println!("Everything succeeded!");
 }
 
-pub fn mandelbrot_image() {
-    let vk = Arc::new(Vk::new());
+pub fn mandelbrot_image(vk: Arc<Vk>) {
 
     let image = Image::new(
         vk.allocators.memory.clone(),
         ImageCreateInfo {
             image_type: ImageType::Dim2d,
             format: Format::R8G8B8A8_UNORM,
-            extent: [1024, 1024, 1],
-            usage: ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,
+            extent: [RESOLUTION, RESOLUTION, 1],
+            usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_SRC,
             ..Default::default()
         },
         AllocationCreateInfo {
@@ -140,31 +136,48 @@ pub fn mandelbrot_image() {
     )
     .unwrap();
 
+    let view = ImageView::new(image.clone(), ImageViewCreateInfo::from_image(&image))
+        .unwrap();
+
+
     let buffer = VkIterBuffer::transfer_dst(
         vk.allocators.clone(), 
-        (0..1024*1024*4).map(|_| 0u8)
+        (0..RESOLUTION*RESOLUTION*4).map(|_| 0u8)
     );
+
+    let mut pipeline = VkComputePipeline::new(vk.clone());
+    pipeline.set_descriptor_set_writes([WriteDescriptorSet::image_view(0, view)]);
+    pipeline.dispatch();
 
     let mut builder = VkBuilder::new_once(vk.clone());
 
     builder.0
-        .clear_color_image(ClearColorImageInfo {
-            clear_value: ClearColorValue::Float([0.0, 0.0, 1.0, 1.0]),
-            ..ClearColorImageInfo::image(image.clone())
-        })
+        .bind_pipeline_compute(pipeline.compute_pipeline.clone().unwrap().clone())
+        .unwrap()
+        .bind_descriptor_sets(
+            PipelineBindPoint::Compute, 
+            pipeline.compute_pipeline.unwrap().layout().clone(), 
+            0, 
+            pipeline.descriptor_set.unwrap()
+        )
+        .unwrap()
+        .dispatch([RESOLUTION/8, RESOLUTION/8, 1])
         .unwrap()
         .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(
             image.clone(),
             buffer.content.clone()
         ))
         .unwrap();
+
+    let now = std::time::Instant::now();
     let cmd_buf = builder.0.build().unwrap();
     let future = submit_cmd_buf(vk.clone(), cmd_buf.clone());
 
     future.wait(None).unwrap();
+    dbg!(now.elapsed());
 
     let result = buffer.content.read().unwrap();
-    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &result[..])
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(RESOLUTION, RESOLUTION, &result[..])
         .unwrap();
 
     image.save("image.png").unwrap();

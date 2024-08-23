@@ -4,20 +4,37 @@ pub mod compute_shaders {
 
     use crate::Vk;
 
+    pub const RESOLUTION: u32 = 1024;
+
     vulkano_shaders::shader!{
         ty: "compute",
         src: r"
             #version 460
 
-            layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+            layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
-            layout(set = 0, binding = 0) buffer Data {
-                uint data[];
-            } buf;
+            layout(set = 0, binding = 0, rgba8) uniform writeonly image2D img;
 
             void main() {
-                uint idx = gl_GlobalInvocationID.x;
-                buf.data[idx] *= 12;
+                vec2 uv = (gl_GlobalInvocationID.xy + vec2(0.5)) / vec2(imageSize(img));
+
+                vec2 c = (uv - vec2(0.5)) * 2.0 - vec2(1.0, 0.0);
+
+                vec2 z = vec2(0.0, 0.0);
+                float i;
+                float iterations = 64;
+                for (i = 0; i < iterations; i += 1) {
+                    z = vec2(
+                        z.x * z.x - z.y * z.y + c.x,
+                        z.y * z.x + z.x * z.y + c.y
+                    );
+
+                    if (length(z) > 4.0) {
+                        break;
+                    }
+                }
+
+                imageStore(img, ivec2(gl_GlobalInvocationID.xy), vec4(1-vec3(i/iterations), 1.0));
             }
         ",
     }

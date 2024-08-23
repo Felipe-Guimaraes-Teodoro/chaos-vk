@@ -6,7 +6,4 @@ fn main() {
     println!("Hello, world!");
 
     test();
-    
-    mandelbrot_image();
-
 }
