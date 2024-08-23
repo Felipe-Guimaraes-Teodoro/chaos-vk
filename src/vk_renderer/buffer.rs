@@ -3,10 +3,14 @@ use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::CopyBufferInfo;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+use vulkano::pipeline::graphics::vertex_input::Vertex as VulkanoVertex;
 
 use super::command::{submit_cmd_buf, VkBuilder};
 use super::vk::MemAllocators;
 use super::Vk;
+
+
+use super::vertex::Vertex;
 
 /*
     Example struct to show how data should be handled
@@ -23,7 +27,7 @@ fn _example_fn(allocators: Arc<MemAllocators>) {
     let example_data = ExampleStruct{a: 0, b: 2};
     let example_buffer = VkBuffer::new(allocators, example_data);
 
-    let _read = example_buffer.content.read().unwrap();
+    let _read = example_buffer._content.read().unwrap();
 }
 
 pub fn _example_operation(vk: Arc<Vk>) {
@@ -79,7 +83,7 @@ pub fn _example_operation(vk: Arc<Vk>) {
 
 #[derive(Clone)]
 pub struct VkBuffer<T: BufferContents> {
-    pub content: Subbuffer<T>,
+    pub _content: Subbuffer<T>,
 }
 
 impl<T: BufferContents> VkBuffer<T> {
@@ -100,7 +104,7 @@ impl<T: BufferContents> VkBuffer<T> {
         .expect("failed to create buffer");
 
         Self {
-            content: buffer,
+            _content: buffer,
         }
     }
 }
@@ -178,6 +182,30 @@ impl<T: BufferContents> VkIterBuffer<T> {
                 ..Default::default()
             },
             iter_data,
+        )
+        .expect("failed to create buffer");
+
+        Self {
+            content: buffer,
+        }
+    }
+
+    pub fn vertex(allocators: Arc<MemAllocators>, vertices: Vec<T>) -> Self 
+    where 
+        T: BufferContents + VulkanoVertex
+    {
+        let buffer = Buffer::from_iter(
+            allocators.memory.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::VERTEX_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            vertices,
         )
         .expect("failed to create buffer");
 

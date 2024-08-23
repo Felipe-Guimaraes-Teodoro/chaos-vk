@@ -1,6 +1,6 @@
-pub mod vk_renderer;
+mod vk_renderer;
 
-use vk_renderer::*;
+pub use vk_renderer::tests::*;
 
 fn main() {
     println!("Hello, world!");

@@ -3,5 +3,7 @@ pub mod buffer;
 pub mod command;
 pub mod shaders;
 pub mod pipeline;
+pub mod vertex;
+pub mod tests;
 
 pub use vk::*;

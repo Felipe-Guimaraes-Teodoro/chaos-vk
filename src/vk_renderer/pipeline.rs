@@ -2,12 +2,42 @@ use std::sync::Arc;
 
 use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{ComputePipeline, Pipeline}};
 
-use super::{command::{submit_cmd_buf, VkBuilder}, shaders::compute_shaders, Vk};
+use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_shader, mandelbrot_shader, pipeline_shader}, Vk};
+
+pub struct VkGraphicsPipeline {
+    pub vk: Arc<Vk>,
+    pub compute_pipeline: f32,
+    pub descriptor_set: Option<Arc<PersistentDescriptorSet>>,
+    pub descriptor_set_layout_index: Option<usize>,
+}
+
+impl VkGraphicsPipeline {
+    pub fn new(
+        vk: Arc<Vk>,
+        vs: Arc<vulkano::shader::ShaderModule>,
+        fs: Arc<vulkano::shader::ShaderModule>,
+    ) -> Self {
+        let graphics_pipeline = pipeline_shader::graphics_pipeline(
+            vk.clone(),
+            vs,
+            fs
+        );
+
+        todo!();
+    }
+
+    pub fn set_descriptor_set_writes(
+        &mut self, writes: impl IntoIterator<Item = WriteDescriptorSet>,
+    ) {
+        todo!()
+    }
+
+    pub fn dispatch(&mut self) {
+        todo!()
+    }
+}
 
 
-/*
-    CURRENTLY SET AS A SIMPLE COMPUTE PIPELINE
-*/
 pub struct VkComputePipeline {
     pub vk: Arc<Vk>,
     pub compute_pipeline: Option<Arc<ComputePipeline>>,
@@ -18,10 +48,12 @@ pub struct VkComputePipeline {
 impl VkComputePipeline {
     pub fn new(
         vk: Arc<Vk>,
+        shader: Arc<vulkano::shader::ShaderModule>,
     ) -> Self {
-        let compute_pipeline = compute_shaders::compute_pipeline(vk.clone());
-
-        // moved descriptor set initialization to it's dedicated fn
+        let compute_pipeline = compute_shader::compute_pipeline(
+            vk.clone(),
+            shader,
+        );
 
         Self {
             vk,
@@ -34,7 +66,7 @@ impl VkComputePipeline {
     pub fn set_descriptor_set_writes(
         &mut self, writes: impl IntoIterator<Item = WriteDescriptorSet>,
     ) {
-        let (descriptor_set, dc_layout_idx) = compute_shaders::descriptor_set(
+        let (descriptor_set, dc_layout_idx) = compute_shader::descriptor_set(
             self.vk.clone(), 
             self.compute_pipeline.clone().unwrap(),
             writes,
