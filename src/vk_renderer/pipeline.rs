@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
-use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{ComputePipeline, Pipeline}};
+use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, ComputePipeline, GraphicsPipeline, Pipeline}, render_pass::RenderPass};
 
-use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_shader, mandelbrot_shader, pipeline_shader}, Vk};
+use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_pipeline, graphics_pipeline}, Vk};
 
 pub struct VkGraphicsPipeline {
-    pub vk: Arc<Vk>,
-    pub compute_pipeline: f32,
-    pub descriptor_set: Option<Arc<PersistentDescriptorSet>>,
-    pub descriptor_set_layout_index: Option<usize>,
+    pub _vk: Arc<Vk>,
+    pub graphics_pipeline: Arc<GraphicsPipeline>,
+    pub render_pass: Arc<RenderPass>
+    // pub descriptor_set: Option<Arc<PersistentDescriptorSet>>,
+    // pub descriptor_set_layout_index: Option<usize>,
+    // pub viewport: Viewport,
 }
 
 impl VkGraphicsPipeline {
@@ -17,17 +19,31 @@ impl VkGraphicsPipeline {
         vs: Arc<vulkano::shader::ShaderModule>,
         fs: Arc<vulkano::shader::ShaderModule>,
     ) -> Self {
-        let graphics_pipeline = pipeline_shader::graphics_pipeline(
+        let viewport = Viewport {
+            offset: [0.0, 0.0],
+            extent: [1024.0, 1024.0],
+            depth_range: 0.0..=1.0,
+        };
+
+        let render_pass = graphics_pipeline::render_pass(vk.clone());
+
+        let graphics_pipeline = graphics_pipeline::graphics_pipeline(
             vk.clone(),
             vs,
-            fs
+            fs,
+            render_pass.clone(),
+            viewport,
         );
 
-        todo!();
+        Self {
+            _vk: vk,
+            graphics_pipeline,
+            render_pass
+        }
     }
 
     pub fn set_descriptor_set_writes(
-        &mut self, writes: impl IntoIterator<Item = WriteDescriptorSet>,
+        &mut self, _writes: impl IntoIterator<Item = WriteDescriptorSet>,
     ) {
         todo!()
     }
@@ -50,7 +66,7 @@ impl VkComputePipeline {
         vk: Arc<Vk>,
         shader: Arc<vulkano::shader::ShaderModule>,
     ) -> Self {
-        let compute_pipeline = compute_shader::compute_pipeline(
+        let compute_pipeline = compute_pipeline::compute_pipeline(
             vk.clone(),
             shader,
         );
@@ -66,7 +82,7 @@ impl VkComputePipeline {
     pub fn set_descriptor_set_writes(
         &mut self, writes: impl IntoIterator<Item = WriteDescriptorSet>,
     ) {
-        let (descriptor_set, dc_layout_idx) = compute_shader::descriptor_set(
+        let (descriptor_set, dc_layout_idx) = compute_pipeline::descriptor_set(
             self.vk.clone(), 
             self.compute_pipeline.clone().unwrap(),
             writes,

@@ -9,9 +9,6 @@ use super::command::{submit_cmd_buf, VkBuilder};
 use super::vk::MemAllocators;
 use super::Vk;
 
-
-use super::vertex::Vertex;
-
 /*
     Example struct to show how data should be handled
     within the context of vulkano buffers

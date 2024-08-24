@@ -1,7 +1,7 @@
 
 /// A set of utility functions for the creation 
 /// of pipelines involving compute shaders 
-pub mod compute_shader {
+pub mod compute_pipeline {
     use std::sync::Arc;
     use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{compute::ComputePipelineCreateInfo, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, shader::ShaderModule};
 
@@ -52,23 +52,32 @@ pub mod compute_shader {
 /// A set of utility functions for the creation 
 /// of pipelines involving both vertex and
 /// fragment shaders 
-pub mod pipeline_shader {
+pub mod graphics_pipeline {
     use std::sync::Arc;
 
     use vulkano::format::Format;
     use vulkano::image::view::ImageView;
     use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
     use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-    use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo};
+    use vulkano::pipeline::graphics::color_blend::{ColorBlendAttachmentState, ColorBlendState};
+    use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
+    use vulkano::pipeline::graphics::multisample::MultisampleState;
+    use vulkano::pipeline::graphics::rasterization::RasterizationState;
+    use vulkano::pipeline::graphics::vertex_input::{Vertex as VulcanoVertex, VertexDefinition};
+    use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
+    use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
+    use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
+    use vulkano::pipeline::{GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo};
+    use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
     use vulkano::shader::ShaderModule;
 
+    use crate::vk_renderer::vertex::Vertex;
     use crate::vk_renderer::Vk;
 
     use super::mandelbrot_shader::RESOLUTION;
 
-    #[allow(unused)]
-    pub fn framebuffer(vk: Arc<Vk>) -> Arc<Framebuffer> {
-        let render_pass = vulkano::single_pass_renderpass!(
+    pub fn render_pass(vk: Arc<Vk>) -> Arc<RenderPass> {
+        vulkano::single_pass_renderpass!(
             vk.device.clone(),
             attachments: {
                 color: {
@@ -83,15 +92,18 @@ pub mod pipeline_shader {
                 depth_stencil: {},
             },
         )
-        .unwrap();
+        .unwrap()
+    }
 
+    #[allow(unused)]
+    pub fn framebuffer(vk: Arc<Vk>, rp: Arc<RenderPass>) -> Arc<Framebuffer> {
         let image = Image::new(
             vk.allocators.memory.clone(),
             ImageCreateInfo {
                 image_type: ImageType::Dim2d,
                 format: Format::R8G8B8A8_UNORM,
                 extent: [RESOLUTION, RESOLUTION, 1],
-                usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_SRC,
+                usage: ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC,
                 ..Default::default()
             },
             AllocationCreateInfo {
@@ -104,7 +116,7 @@ pub mod pipeline_shader {
         let view = ImageView::new_default(image.clone()).unwrap();
         
         Framebuffer::new(
-            render_pass.clone(),
+            rp.clone(),
             FramebufferCreateInfo {
                 attachments: vec![view],
                 ..Default::default()
@@ -117,8 +129,58 @@ pub mod pipeline_shader {
         vk: Arc<Vk>,
         vs: Arc<ShaderModule>,
         fs: Arc<ShaderModule>,
-    ) {
-        
+        rp: Arc<RenderPass>,
+        vp: Viewport
+    ) -> Arc<GraphicsPipeline> {
+        let vs_entry = vs.entry_point("main").unwrap();
+        let fs_entry = fs.entry_point("main").unwrap();
+
+        let vertex_input_state = Vertex::per_vertex()
+            .definition(&vs_entry.info().input_interface)
+            .unwrap();
+
+        let stages = [
+            PipelineShaderStageCreateInfo::new(vs_entry),
+            PipelineShaderStageCreateInfo::new(fs_entry),
+        ];
+
+        let layout = PipelineLayout::new(
+            vk.device.clone(), 
+            PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+                .into_pipeline_layout_create_info(vk.device.clone())
+                .unwrap(),
+        )
+        .unwrap();
+
+        let subpass = Subpass::from(rp.clone(), 0).unwrap();
+
+        GraphicsPipeline::new(
+            vk.device.clone(), 
+            None, 
+            GraphicsPipelineCreateInfo {
+                stages: stages.into_iter().collect(),
+
+                vertex_input_state: Some(vertex_input_state),
+
+                input_assembly_state: Some(InputAssemblyState::default()),
+
+                viewport_state: Some(ViewportState {
+                    viewports: [vp].into_iter().collect(),
+                    ..Default::default()
+                }),
+
+                rasterization_state: Some(RasterizationState::default()),
+                multisample_state: Some(MultisampleState::default()),
+                color_blend_state: Some(ColorBlendState::with_attachment_states(
+                    subpass.num_color_attachments(),
+                    ColorBlendAttachmentState::default(),
+                )),
+
+                subpass: Some(subpass.into()),
+                ..GraphicsPipelineCreateInfo::layout(layout)
+            },
+        )
+        .unwrap()
     }
 }
 
@@ -128,10 +190,10 @@ pub mod vertex_shader {
         src: r"
             #version 460
 
-            layout(location = 0) in vec3 position;
+            layout(location = 0) in vec3 pos;
 
             void main() {
-                gl_Position = vec4(position, 1.0);
+                gl_Position = vec4(pos, 1.0);
             }
         ",
     }
