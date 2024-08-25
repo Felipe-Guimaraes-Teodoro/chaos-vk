@@ -4,14 +4,14 @@ use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex a
 #[derive(BufferContents, VulkanoVertex)]
 #[repr(C)]
 pub struct Vertex {
-    #[format(R32G32B32_SFLOAT)]
-    pub pos: [f32; 3],
+    #[format(R32G32_SFLOAT)]
+    pub pos: [f32; 2],
 }
 
 impl Vertex {
     pub fn from_vec(vec: Vec3) -> Self {
         Self {
-            pos: [vec.x, vec.y, vec.z],
+            pos: [vec.x, vec.y],
         }
     }
 }

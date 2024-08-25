@@ -77,8 +77,7 @@ pub mod graphics_pipeline {
     use super::mandelbrot_shader::RESOLUTION;
 
     pub fn render_pass(vk: Arc<Vk>) -> Arc<RenderPass> {
-        vulkano::single_pass_renderpass!(
-            vk.device.clone(),
+        vulkano::single_pass_renderpass!(vk.device.clone(),
             attachments: {
                 color: {
                     format: Format::R8G8B8A8_UNORM,
@@ -96,23 +95,7 @@ pub mod graphics_pipeline {
     }
 
     #[allow(unused)]
-    pub fn framebuffer(vk: Arc<Vk>, rp: Arc<RenderPass>) -> Arc<Framebuffer> {
-        let image = Image::new(
-            vk.allocators.memory.clone(),
-            ImageCreateInfo {
-                image_type: ImageType::Dim2d,
-                format: Format::R8G8B8A8_UNORM,
-                extent: [RESOLUTION, RESOLUTION, 1],
-                usage: ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
+    pub fn framebuffer(vk: Arc<Vk>, rp: Arc<RenderPass>, image: Arc<Image>) -> Arc<Framebuffer> {
         let view = ImageView::new_default(image.clone()).unwrap();
         
         Framebuffer::new(
@@ -190,10 +173,10 @@ pub mod vertex_shader {
         src: r"
             #version 460
 
-            layout(location = 0) in vec3 pos;
+            layout(location = 0) in vec2 pos;
 
             void main() {
-                gl_Position = vec4(pos, 1.0);
+                gl_Position = vec4(pos, 0.0, 1.0);
             }
         ",
     }

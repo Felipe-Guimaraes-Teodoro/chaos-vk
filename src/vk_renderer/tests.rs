@@ -6,13 +6,16 @@ use std::sync::Arc;
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
-use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo};
+use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
+use vulkano::library;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
+use vulkano::swapchain::Surface;
+use winit::event_loop::EventLoop;
 
 use crate::vk_renderer::buffer::_example_operation;
 use crate::vk_renderer::Vk;
@@ -104,12 +107,14 @@ pub fn mandelbrot_image(vk: Arc<Vk>) {
 }
 
 pub fn rendering_pipeline(vk: Arc<Vk>) {
+    
+    dbg!(RESOLUTION);
     let image = Image::new(
         vk.allocators.memory.clone(),
         ImageCreateInfo {
             image_type: ImageType::Dim2d,
             format: Format::R8G8B8A8_UNORM,
-            extent: [RESOLUTION, RESOLUTION, 1],
+            extent: [1024, 1024, 1],
             usage: ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC,
             ..Default::default()
         },
@@ -120,16 +125,17 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
     )
     .unwrap();
 
-    let vertices = vec![
-        Vertex::from_vec(vec3(0.0, 0.0, 0.0)),
-        Vertex::from_vec(vec3(0.5, 0.0, 0.0)),
-        Vertex::from_vec(vec3(0.5, 0.5, 0.0)),
-    ];
-
     let buffer = VkIterBuffer::transfer_dst(
         vk.allocators.clone(), 
-        (0..1024*1024*4).map(|_| 0u8)
+        (0..RESOLUTION*RESOLUTION*4).map(|_| 0u8)
     );
+
+    let vertices = vec![
+        Vertex::from_vec(vec3(0.0, 0.0, 0.0)),
+        Vertex::from_vec(vec3(1.0, 0.0, 0.0)),
+        Vertex::from_vec(vec3(1.0, 1.0, 0.0)),
+    ];
+
     let vertex_buffer = VkIterBuffer::vertex(vk.allocators.clone(), vertices);
 
     let pipeline = VkGraphicsPipeline::new(
@@ -138,9 +144,7 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
         fragment_shader::load(vk.device.clone()).unwrap()
     );
 
-    dbg!(&pipeline.render_pass);
-
-    let framebuffer = graphics_pipeline::framebuffer(vk.clone(), pipeline.render_pass);
+    let framebuffer = graphics_pipeline::framebuffer(vk.clone(), pipeline.render_pass, image.clone());
 
     let mut builder = VkBuilder::new_once(vk.clone());
 
@@ -164,7 +168,7 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
             3, 1, 0, 0
         )
         .unwrap()
-        .end_render_pass(SubpassEndInfo::default())
+        .end_render_pass(Default::default())
         .unwrap()
         .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(image, buffer.content.clone()))
         .unwrap();
@@ -178,12 +182,16 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 
     let result = buffer.content.read().unwrap();
 
-    // println!("{:?}", &result[0..1024*1024*4]);
-
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(RESOLUTION, RESOLUTION, &result[..])
         .unwrap();
 
     image.save("loco.png").unwrap();
 
     println!("graphics pipeline checks out!");
+}
+
+pub fn windowing() {
+    let el = EventLoop::new();
+
+    let vk = Vk::new(&el); 
 }

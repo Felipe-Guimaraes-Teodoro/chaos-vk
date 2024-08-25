@@ -4,8 +4,10 @@ use vulkano::command_buffer::allocator::{StandardCommandBufferAllocator, Standar
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::{Device, DeviceCreateInfo, Queue, QueueCreateInfo, QueueFlags};
 use vulkano::memory::allocator::StandardMemoryAllocator;
+use vulkano::swapchain::Surface;
 use vulkano::VulkanLibrary;
 use vulkano::instance::{Instance, InstanceCreateInfo};
+use winit::event_loop::EventLoop;
 
 pub struct MemAllocators {
     pub memory: Arc<StandardMemoryAllocator>,
@@ -44,10 +46,17 @@ pub struct Vk {
 }
 
 impl Vk {
-    pub fn new() -> Self {
+    pub fn new(el: Option<&EventLoop<()>>) -> Self {     
         let library = VulkanLibrary::new().expect("no local Vulkan library/DLL");
-        let instance = Instance::new(library, InstanceCreateInfo::default())
-            .expect("failed to create instance");
+        // let required_extensions = Surface::required_extensions(el);
+        let instance = Instance::new(
+            library, 
+            InstanceCreateInfo {
+                enabled_extensions: Default::default(),
+                ..Default::default()
+            }
+        )
+        .expect("failed to create instance");
     
         let physical_device = instance
             .enumerate_physical_devices()
@@ -63,9 +72,7 @@ impl Vk {
             .queue_family_properties()
             .iter()
             .enumerate()
-            .position(|(_queue_family_index, queue_family_properties)| {
-                queue_family_properties.queue_flags.contains(QueueFlags::GRAPHICS)
-            })
+            .position(|(_, q)| q.queue_flags.contains(QueueFlags::GRAPHICS))
             .expect("couldn't find a graphical queue family") as u32;
             
         let (device, mut queues) = Device::new(
