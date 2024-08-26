@@ -13,10 +13,8 @@ use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
-use vulkano::swapchain::Surface;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
 
 use crate::vk_renderer::buffer::_example_operation;
 use crate::vk_renderer::Vk;
@@ -30,17 +28,17 @@ use super::swapchain;
 use super::vertex::Vertex;
 
 pub fn test() {
-    let vk = Arc::new(Vk::new(None));
+    //let vk = Arc::new(Vk::new(None));
 
-    _example_operation(vk.clone());
+    //_example_operation(vk.clone());
 
     /* example pipeline testing */
 
     // let buffer = VkIterBuffer::storage(vk.allocators.clone(), 0..65536u32);
     // mandelbrot_image(vk.clone());
-    rendering_pipeline(vk);
+    // rendering_pipeline(vk);
 
-    // windowing();
+    windowing();
 
     println!("Everything succeeded!");
 }
@@ -201,16 +199,14 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 pub fn windowing() {
     let el = EventLoop::new();
 
-    let vk = Arc::new(Vk::new(Some(&el)));
-    let window = Arc::new(WindowBuilder::new().build(&el).unwrap());
-    let surface = Surface::from_window(vk.instance.clone(), window.clone()).unwrap();
-    let swapchain = swapchain(vk.clone(), surface, window);
+    let vk = Arc::new(Vk::new(&el));
+    let (swapchain, images) = swapchain(vk.clone());
 
     let pipeline = VkGraphicsPipeline::new(
         vk.clone(), 
         vertex_shader::load(vk.device.clone()).unwrap(), 
         fragment_shader::load(vk.device.clone()).unwrap(),
-        Some(swapchain.0.clone())
+        Some(swapchain.clone())
     );
 
     let vert_buffer = VkIterBuffer::vertex(
@@ -219,8 +215,8 @@ pub fn windowing() {
     );
 
     let framebuffers = framebuffers(
-        render_pass(vk.clone(), Some(swapchain.0.clone())),
-        swapchain.1.clone()
+        render_pass(vk.clone(), Some(swapchain.clone())),
+        images.clone()
     );
 
     let get_cmd_bufs = || {
@@ -263,6 +259,10 @@ pub fn windowing() {
             } => {
                 *control_flow = ControlFlow::Exit;
             },
+
+            Event::MainEventsCleared => {
+                
+            }
 
             _ => (),
         }
