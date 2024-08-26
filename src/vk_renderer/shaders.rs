@@ -57,8 +57,7 @@ pub mod graphics_pipeline {
 
     use vulkano::format::Format;
     use vulkano::image::view::ImageView;
-    use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
-    use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+    use vulkano::image::Image;
     use vulkano::pipeline::graphics::color_blend::{ColorBlendAttachmentState, ColorBlendState};
     use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
     use vulkano::pipeline::graphics::multisample::MultisampleState;
@@ -70,17 +69,19 @@ pub mod graphics_pipeline {
     use vulkano::pipeline::{GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo};
     use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
     use vulkano::shader::ShaderModule;
+    use vulkano::swapchain::Swapchain;
 
     use crate::vk_renderer::vertex::Vertex;
     use crate::vk_renderer::Vk;
 
-    use super::mandelbrot_shader::RESOLUTION;
-
-    pub fn render_pass(vk: Arc<Vk>) -> Arc<RenderPass> {
+    pub fn render_pass(vk: Arc<Vk>, swapchain: Option<Arc<Swapchain>>) -> Arc<RenderPass> {
         vulkano::single_pass_renderpass!(vk.device.clone(),
             attachments: {
                 color: {
-                    format: Format::R8G8B8A8_UNORM,
+                    format: match swapchain {
+                        Some(swapchain) => swapchain.image_format(),
+                        None => Format::R8G8B8A8_UNORM,
+                    },
                     samples: 1,
                     load_op: Clear,
                     store_op: Store,
@@ -94,10 +95,9 @@ pub mod graphics_pipeline {
         .unwrap()
     }
 
-    #[allow(unused)]
-    pub fn framebuffer(vk: Arc<Vk>, rp: Arc<RenderPass>, image: Arc<Image>) -> Arc<Framebuffer> {
+    pub fn framebuffer(rp: Arc<RenderPass>, image: Arc<Image>) -> Arc<Framebuffer> {
         let view = ImageView::new_default(image.clone()).unwrap();
-        
+
         Framebuffer::new(
             rp.clone(),
             FramebufferCreateInfo {
@@ -106,6 +106,23 @@ pub mod graphics_pipeline {
             },
         )
         .unwrap()
+    }
+
+    pub fn framebuffers(rp: Arc<RenderPass>, images: Vec<Arc<Image>>) -> Vec<Arc<Framebuffer>> {
+        images
+            .iter()
+            .map(|image| {
+                let view = ImageView::new_default(image.clone()).unwrap();
+                Framebuffer::new(
+                    rp.clone(),
+                    FramebufferCreateInfo {
+                        attachments: vec![view],
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>()
     }
 
     pub fn graphics_pipeline(

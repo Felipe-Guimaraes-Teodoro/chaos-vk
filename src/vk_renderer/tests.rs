@@ -6,26 +6,31 @@ use std::sync::Arc;
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
-use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
+use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo};
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
-use vulkano::library;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use vulkano::swapchain::Surface;
-use winit::event_loop::EventLoop;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::WindowBuilder;
 
 use crate::vk_renderer::buffer::_example_operation;
 use crate::vk_renderer::Vk;
 
+use super::command::CommandBufferType;
+use super::geometry::fundamental::circle;
 use super::pipeline::VkGraphicsPipeline;
+use super::shaders::graphics_pipeline::{framebuffers, render_pass};
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
+use super::swapchain;
 use super::vertex::Vertex;
 
 pub fn test() {
-    let vk = Arc::new(Vk::new());
+    let vk = Arc::new(Vk::new(None));
 
     _example_operation(vk.clone());
 
@@ -34,6 +39,8 @@ pub fn test() {
     // let buffer = VkIterBuffer::storage(vk.allocators.clone(), 0..65536u32);
     // mandelbrot_image(vk.clone());
     rendering_pipeline(vk);
+
+    // windowing();
 
     println!("Everything succeeded!");
 }
@@ -141,10 +148,11 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
     let pipeline = VkGraphicsPipeline::new(
         vk.clone(), 
         vertex_shader::load(vk.device.clone()).unwrap(), 
-        fragment_shader::load(vk.device.clone()).unwrap()
+        fragment_shader::load(vk.device.clone()).unwrap(),
+        None,
     );
 
-    let framebuffer = graphics_pipeline::framebuffer(vk.clone(), pipeline.render_pass, image.clone());
+    let framebuffer = graphics_pipeline::framebuffer(pipeline.render_pass, image.clone());
 
     let mut builder = VkBuilder::new_once(vk.clone());
 
@@ -193,5 +201,70 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 pub fn windowing() {
     let el = EventLoop::new();
 
-    let vk = Vk::new(&el); 
+    let vk = Arc::new(Vk::new(Some(&el)));
+    let window = Arc::new(WindowBuilder::new().build(&el).unwrap());
+    let surface = Surface::from_window(vk.instance.clone(), window.clone()).unwrap();
+    let swapchain = swapchain(vk.clone(), surface, window);
+
+    let pipeline = VkGraphicsPipeline::new(
+        vk.clone(), 
+        vertex_shader::load(vk.device.clone()).unwrap(), 
+        fragment_shader::load(vk.device.clone()).unwrap(),
+        Some(swapchain.0.clone())
+    );
+
+    let vert_buffer = VkIterBuffer::vertex(
+        vk.allocators.clone(), 
+        circle(16, 1.0),
+    );
+
+    let framebuffers = framebuffers(
+        render_pass(vk.clone(), Some(swapchain.0.clone())),
+        swapchain.1.clone()
+    );
+
+    let get_cmd_bufs = || {
+        framebuffers.iter().map(|framebuffer| {
+            let mut builder = VkBuilder::new_multiple(vk.clone());
+            
+            builder.0
+                .begin_render_pass(
+                    RenderPassBeginInfo {
+                        clear_values: vec![Some([0.1, 0.1, 0.1, 1.0].into())],
+                        ..RenderPassBeginInfo::framebuffer(framebuffer.clone())
+                    },
+                    SubpassBeginInfo {
+                        contents: SubpassContents::Inline,
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
+                .bind_pipeline_graphics(pipeline.graphics_pipeline.clone())
+                .unwrap()
+                .bind_vertex_buffers(0, vert_buffer.content.clone())
+                .unwrap()
+                .draw(vert_buffer.content.len() as u32, 1, 0, 0)
+                .unwrap()
+                .end_render_pass(SubpassEndInfo::default())
+                .unwrap();
+
+            Arc::new(builder.command_buffer())
+
+        }).collect::<Vec<Arc<CommandBufferType>>>()
+    };
+
+    get_cmd_bufs(); // test drive
+
+    el.run(|event, _, control_flow| {
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                *control_flow = ControlFlow::Exit;
+            },
+
+            _ => (),
+        }
+    });
 }

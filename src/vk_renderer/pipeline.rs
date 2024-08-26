@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, ComputePipeline, GraphicsPipeline, Pipeline}, render_pass::RenderPass};
+use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, ComputePipeline, GraphicsPipeline, Pipeline}, render_pass::RenderPass, swapchain::Swapchain};
 
 use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_pipeline, graphics_pipeline}, Vk};
 
@@ -18,6 +18,7 @@ impl VkGraphicsPipeline {
         vk: Arc<Vk>,
         vs: Arc<vulkano::shader::ShaderModule>,
         fs: Arc<vulkano::shader::ShaderModule>,
+        swapchain: Option<Arc<Swapchain>>,
     ) -> Self {
         let viewport = Viewport {
             offset: [0.0, 0.0],
@@ -25,7 +26,10 @@ impl VkGraphicsPipeline {
             depth_range: 0.0..=1.0,
         };
 
-        let render_pass = graphics_pipeline::render_pass(vk.clone());
+        let render_pass = graphics_pipeline::render_pass(
+            vk.clone(),
+            swapchain
+        );
 
         let graphics_pipeline = graphics_pipeline::graphics_pipeline(
             vk.clone(),

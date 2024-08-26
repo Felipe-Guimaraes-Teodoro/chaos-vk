@@ -11,7 +11,7 @@ pub struct VkBuilder(
     >
 );
 
-type CommandBufferType = Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>;
+pub type CommandBufferType = Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>;
 
 impl VkBuilder {
     /// Command buffer builder made only for submitting once
@@ -20,6 +20,18 @@ impl VkBuilder {
             &vk.allocators.command.clone(), 
             vk.queue_family_index, 
             vulkano::command_buffer::CommandBufferUsage::OneTimeSubmit,
+        )
+        .unwrap();
+
+        Self(builder)
+    }
+
+    /// Command buffer builder made for submitting multiple times
+    pub fn new_multiple(vk: Arc<Vk>) -> Self {
+        let builder = AutoCommandBufferBuilder::primary(
+            &vk.allocators.command.clone(), 
+            vk.queue_family_index, 
+            vulkano::command_buffer::CommandBufferUsage::MultipleSubmit,
         )
         .unwrap();
 
