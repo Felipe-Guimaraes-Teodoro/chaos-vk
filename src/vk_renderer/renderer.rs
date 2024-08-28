@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{future::IntoFuture, sync::Arc};
 
-use vulkano::{command_buffer::{RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo}, image::Image, render_pass::Framebuffer, swapchain::{self, acquire_next_image, acquire_next_image_raw, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{self, GpuFuture}, Validated, VulkanError};
+use vulkano::{buffer::Subbuffer, command_buffer::{allocator::{StandardCommandBufferAlloc, StandardCommandBufferAllocator}, AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo}, image::Image, pipeline::GraphicsPipeline, render_pass::Framebuffer, swapchain::{self, acquire_next_image, acquire_next_image_raw, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{self, GpuFuture}, Validated, VulkanError};
 use winit::{event_loop::EventLoop, window::{self, Window, WindowBuilder}};
 
 use crate::vk_renderer::{buffer::VkIterBuffer, pipeline::VkGraphicsPipeline, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, Vk};
@@ -27,24 +27,19 @@ impl Renderer {
         }
     }
 
-    pub fn update(&mut self) {
-        let vert_buffer = VkIterBuffer::vertex(
-            self.vk.allocators.clone(), 
-            circle(16, 1.0)
-        );
-
+    pub fn update(&mut self, vert_buffer: Subbuffer<[Vertex]>) {
         self.presenter.update(self.vk.clone(), vert_buffer);
     }
  }
 
 
- /* todo: temporarily merge presenter in renderer */
+ /* todo: move presenter to its own file */
  pub struct Presenter {
     pub swapchain: Arc<Swapchain>,
     pub images: Vec<Arc<Image>>,
     pub pipeline: VkGraphicsPipeline,
     pub framebuffers: Vec<Arc<Framebuffer>>,
-    pub command_buffers: Vec<Arc<CommandBufferType>>,
+    pub command_buffers: Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>>,
 
     pub recreate_swapchain: bool,
     pub window_resized: bool,
@@ -63,7 +58,7 @@ impl Renderer {
 
         let framebuffers = framebuffers(
             render_pass( vk.clone(), Some(swapchain.clone()) ),
-            images.clone()
+            &images.clone()
         );
 
         Self {
@@ -78,37 +73,50 @@ impl Renderer {
         }
     }
     
-    fn get_command_buffers(&self, vk: Arc<Vk>, vert_buffer: VkIterBuffer<Vertex>,) -> Vec<Arc<CommandBufferType>> {
-        self.framebuffers.iter().map(|framebuffer| {
-            let mut builder = VkBuilder::new_multiple(vk.clone());
-            
-            builder.0
-                .begin_render_pass(
-                    RenderPassBeginInfo {
-                        clear_values: vec![Some([0.1, 0.1, 0.1, 1.0].into())],
-                        ..RenderPassBeginInfo::framebuffer(framebuffer.clone())
-                    },
-                    SubpassBeginInfo {
-                        contents: SubpassContents::Inline,
-                        ..Default::default()
-                    },
+    pub fn get_command_buffers(
+        &self, 
+        vk: Arc<Vk>, 
+        content: Subbuffer<[Vertex]>,
+        pipeline: Arc<GraphicsPipeline>,
+        framebuffers: Vec<Arc<Framebuffer>>,
+    ) -> Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> {
+        framebuffers
+            .iter()
+            .map(|framebuffer| {
+                let mut builder = AutoCommandBufferBuilder::primary(
+                    &vk.allocators.command,
+                    vk.queue.queue_family_index(),
+                    CommandBufferUsage::MultipleSubmit,
                 )
-                .unwrap()
-                .bind_pipeline_graphics(self.pipeline.graphics_pipeline.clone())
-                .unwrap()
-                .bind_vertex_buffers(0, vert_buffer.content.clone())
-                .unwrap()
-                .draw(vert_buffer.content.len() as u32, 1, 0, 0)
-                .unwrap()
-                .end_render_pass(SubpassEndInfo::default())
                 .unwrap();
 
-            Arc::new(builder.command_buffer())
+                builder
+                    .begin_render_pass(
+                        RenderPassBeginInfo {
+                            clear_values: vec![Some([0.0, 0.0, 1.0, 1.0].into())],
+                            ..RenderPassBeginInfo::framebuffer(framebuffer.clone())
+                        },
+                        SubpassBeginInfo {
+                            contents: SubpassContents::Inline,
+                            ..Default::default()
+                        },
+                    )
+                    .unwrap()
+                    .bind_pipeline_graphics(pipeline.clone())
+                    .unwrap()
+                    .bind_vertex_buffers(0, content.clone())
+                    .unwrap()
+                    .draw(content.len() as u32, 1, 0, 0)
+                    .unwrap()
+                    .end_render_pass(Default::default())
+                    .unwrap();
 
-        }).collect::<Vec<Arc<CommandBufferType>>>()
+                builder.build().unwrap()
+            })
+            .collect()
     }
 
-    pub fn update(&mut self, vk: Arc<Vk>, vert_buffer: VkIterBuffer<Vertex>) {
+    pub fn update(&mut self, vk: Arc<Vk>, content: Subbuffer<[Vertex]>) {
         if self.recreate_swapchain || self.window_resized {
             self.recreate_swapchain = false;
     
@@ -122,7 +130,7 @@ impl Renderer {
                 })
                 .expect("failed to recreate swapchain: {e}");
             self.swapchain = new_swapchain;
-            let new_framebuffers = framebuffers(self.pipeline.render_pass.clone(), new_images);
+            let new_framebuffers = framebuffers(self.pipeline.render_pass.clone(), &new_images);
 
             if self.window_resized {
                 self.window_resized = false;
@@ -136,8 +144,9 @@ impl Renderer {
                         self.pipeline.render_pass.clone(),
                         self.pipeline.viewport.clone(),
                     );
-                
-                self.command_buffers = self.get_command_buffers(vk, vert_buffer)
+            
+                // here lies the issue
+                // self.command_buffers = self.get_command_buffers(vk, content);
             }
         }
     }

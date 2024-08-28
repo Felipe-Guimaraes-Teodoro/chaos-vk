@@ -108,7 +108,7 @@ pub mod graphics_pipeline {
         .unwrap()
     }
 
-    pub fn framebuffers(rp: Arc<RenderPass>, images: Vec<Arc<Image>>) -> Vec<Arc<Framebuffer>> {
+    pub fn framebuffers(rp: Arc<RenderPass>, images: &Vec<Arc<Image>>) -> Vec<Arc<Framebuffer>> {
         images
             .iter()
             .map(|image| {
