@@ -13,15 +13,17 @@ use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
+use vulkano::swapchain::Surface;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::WindowBuilder;
 
-use crate::vk_renderer::buffer::_example_operation;
 use crate::vk_renderer::Vk;
 
 use super::command::CommandBufferType;
 use super::geometry::fundamental::circle;
 use super::pipeline::VkGraphicsPipeline;
+use super::renderer::Renderer;
 use super::shaders::graphics_pipeline::{framebuffers, render_pass};
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
 use super::swapchain;
@@ -199,72 +201,25 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 pub fn windowing() {
     let el = EventLoop::new();
 
-    let vk = Arc::new(Vk::new(&el));
-    let (swapchain, images) = swapchain(vk.clone());
+    let mut renderer = Renderer::new(&el);
 
-    let pipeline = VkGraphicsPipeline::new(
-        vk.clone(), 
-        vertex_shader::load(vk.device.clone()).unwrap(), 
-        fragment_shader::load(vk.device.clone()).unwrap(),
-        Some(swapchain.clone())
-    );
-
-    let vert_buffer = VkIterBuffer::vertex(
-        vk.allocators.clone(), 
-        circle(16, 1.0),
-    );
-
-    let framebuffers = framebuffers(
-        render_pass(vk.clone(), Some(swapchain.clone())),
-        images.clone()
-    );
-
-    let get_cmd_bufs = || {
-        framebuffers.iter().map(|framebuffer| {
-            let mut builder = VkBuilder::new_multiple(vk.clone());
-            
-            builder.0
-                .begin_render_pass(
-                    RenderPassBeginInfo {
-                        clear_values: vec![Some([0.1, 0.1, 0.1, 1.0].into())],
-                        ..RenderPassBeginInfo::framebuffer(framebuffer.clone())
-                    },
-                    SubpassBeginInfo {
-                        contents: SubpassContents::Inline,
-                        ..Default::default()
-                    },
-                )
-                .unwrap()
-                .bind_pipeline_graphics(pipeline.graphics_pipeline.clone())
-                .unwrap()
-                .bind_vertex_buffers(0, vert_buffer.content.clone())
-                .unwrap()
-                .draw(vert_buffer.content.len() as u32, 1, 0, 0)
-                .unwrap()
-                .end_render_pass(SubpassEndInfo::default())
-                .unwrap();
-
-            Arc::new(builder.command_buffer())
-
-        }).collect::<Vec<Arc<CommandBufferType>>>()
-    };
-
-    get_cmd_bufs(); // test drive
-
-    el.run(|event, _, control_flow| {
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
-                *control_flow = ControlFlow::Exit;
-            },
-
-            Event::MainEventsCleared => {
-                
-            }
-
-            _ => (),
+    el.run(move |event, _, control_flow| match event {
+        Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+        } => {
+            *control_flow = ControlFlow::Exit;
         }
+        Event::WindowEvent {
+            event: WindowEvent::Resized(_),
+            ..
+        } => {
+            renderer.presenter.window_resized = true;
+        }
+        Event::MainEventsCleared => {
+            renderer.update();
+            renderer.presenter.present(renderer.vk.clone());
+        }
+        _ => (),
     });
 }

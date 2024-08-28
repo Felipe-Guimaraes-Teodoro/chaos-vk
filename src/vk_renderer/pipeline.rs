@@ -1,16 +1,19 @@
 use std::sync::Arc;
 
-use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, ComputePipeline, GraphicsPipeline, Pipeline}, render_pass::RenderPass, swapchain::Swapchain};
+use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, ComputePipeline, GraphicsPipeline, Pipeline}, render_pass::RenderPass, shader::ShaderModule, swapchain::Swapchain};
 
 use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_pipeline, graphics_pipeline}, Vk};
 
 pub struct VkGraphicsPipeline {
     pub _vk: Arc<Vk>,
     pub graphics_pipeline: Arc<GraphicsPipeline>,
-    pub render_pass: Arc<RenderPass>
+    pub render_pass: Arc<RenderPass>,
     // pub descriptor_set: Option<Arc<PersistentDescriptorSet>>,
     // pub descriptor_set_layout_index: Option<usize>,
-    // pub viewport: Viewport,
+    pub vs: Arc<ShaderModule>,
+    pub fs: Arc<ShaderModule>,
+    
+    pub viewport: Viewport,
 }
 
 impl VkGraphicsPipeline {
@@ -33,16 +36,19 @@ impl VkGraphicsPipeline {
 
         let graphics_pipeline = graphics_pipeline::graphics_pipeline(
             vk.clone(),
-            vs,
-            fs,
+            vs.clone(),
+            fs.clone(),
             render_pass.clone(),
-            viewport,
+            viewport.clone(),
         );
 
         Self {
             _vk: vk,
             graphics_pipeline,
-            render_pass
+            render_pass,
+            viewport,
+            vs,
+            fs,
         }
     }
 

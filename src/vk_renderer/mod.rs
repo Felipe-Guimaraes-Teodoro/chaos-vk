@@ -6,5 +6,6 @@ pub mod pipeline;
 pub mod vertex;
 pub mod tests;
 pub mod geometry;
+pub mod renderer;
 
 pub use vk::*;
