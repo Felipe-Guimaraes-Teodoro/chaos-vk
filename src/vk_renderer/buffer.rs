@@ -210,4 +210,28 @@ impl<T: BufferContents> VkIterBuffer<T> {
             content: buffer,
         }
     }
+
+    pub fn index(allocators: Arc<MemAllocators>, vertices: Vec<T>) -> Self 
+    where 
+        T: BufferContents 
+    {
+        let buffer = Buffer::from_iter(
+            allocators.memory.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::INDEX_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            vertices,
+        )
+        .expect("failed to create buffer");
+
+        Self {
+            content: buffer,
+        }
+    }
 }

@@ -7,11 +7,13 @@ use std::sync::Arc;
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
+use vulkano::buffer::IndexBuffer;
 use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo};
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
+use vulkano::instance::InstanceOwned;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use vulkano::swapchain::{self, Surface, SwapchainCreateInfo, SwapchainPresentInfo};
@@ -30,7 +32,7 @@ use super::pipeline::VkGraphicsPipeline;
 use super::renderer::Renderer;
 use super::shaders::graphics_pipeline::{framebuffer, framebuffers, graphics_pipeline, render_pass};
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
-use super::swapchain;
+use super::{swapchain, MemAllocators};
 use super::vertex::Vertex;
 
 pub fn test() {
@@ -207,16 +209,7 @@ pub fn windowing() {
 
     let mut renderer = Renderer::new(&el);
 
-    let vert_buffer = Arc::new(VkIterBuffer::vertex(
-        renderer.vk.allocators.clone(), 
-        circle(16, 1.0)
-    ));
-    let mut window_resized = false;
-    let mut recreate_swapchain = false;
-
-    let frames_in_flight = renderer.presenter.images.len();
-    let mut fences: Vec<Option<Arc<FenceSignalFuture<_>>>> = vec![None; frames_in_flight];
-    let mut previous_fence_i = 0;
+    let mut t = 0.0;
 
     el.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -229,104 +222,28 @@ pub fn windowing() {
             event: WindowEvent::Resized(_),
             ..
         } => {
-            window_resized = true;
+            renderer.presenter.window_resized = true;
         }
         Event::MainEventsCleared => {
-            if window_resized || recreate_swapchain {
-                recreate_swapchain = false;
+            renderer.update(get_circle(renderer.vk.allocators.clone(), t as usize));
+            renderer.presenter.recreate_swapchain = true;
 
-                let new_dimensions = renderer.vk.window.inner_size();
+            dbg!(t);
 
-                let (new_swapchain, new_images) = renderer.presenter.swapchain
-                    .recreate(SwapchainCreateInfo {
-                        image_extent: new_dimensions.into(),
-                        ..renderer.presenter.swapchain.create_info()
-                    })
-                    .expect("failed to recreate swapchain");
-
-                renderer.presenter.swapchain = new_swapchain;
-                let new_framebuffers = framebuffers(
-                    renderer.presenter.pipeline.render_pass.clone(),
-                    &new_images
-                );
-
-                if window_resized {
-                    window_resized = false;
-
-                    renderer.presenter.pipeline.viewport.extent = new_dimensions.into();
-                    let new_pipeline = graphics_pipeline(
-                        renderer.vk.clone(),
-                        renderer.presenter.pipeline.vs.clone(),
-                        renderer.presenter.pipeline.fs.clone(),
-                        renderer.presenter.pipeline.render_pass.clone(),
-                        renderer.presenter.pipeline.viewport.clone(),
-                    );
-
-                    renderer.presenter.command_buffers = renderer.presenter.get_command_buffers(
-                        renderer.vk.clone(),
-                        vert_buffer.content.clone(),
-                        new_pipeline,
-                        new_framebuffers,
-                    );
-                }
-            }
-
-            let (image_i, suboptimal, acquire_future) =
-                match swapchain::acquire_next_image(renderer.presenter.swapchain.clone(), None)
-                    .map_err(Validated::unwrap)
-                {
-                    Ok(r) => r,
-                    Err(VulkanError::OutOfDate) => {
-                        recreate_swapchain = true;
-                        return;
-                    }
-                    Err(e) => panic!("failed to acquire next image: {e}"),
-                };
-
-            if suboptimal {
-                recreate_swapchain = true;
-            }
-
-            // wait for the fence related to this image to finish (normally this would be the oldest fence)
-            if let Some(image_fence) = &fences[image_i as usize] {
-                image_fence.wait(None).unwrap();
-            }
-
-            let previous_future = match fences[previous_fence_i as usize].clone() {
-                // Create a NowFuture
-                None => {
-                    let mut now = now(renderer.vk.device.clone());
-                    now.cleanup_finished();
-
-                    now.boxed()
-                }
-                Some(fence) => vulkano::sync::GpuFuture::boxed(fence),
-            };
-
-            let future = previous_future
-                .join(acquire_future)
-                .then_execute(renderer.vk.queue.clone(), renderer.presenter.command_buffers[image_i as usize].clone())
-                .unwrap()
-                .then_swapchain_present(
-                    renderer.vk.queue.clone(),
-                    SwapchainPresentInfo::swapchain_image_index(renderer.presenter.swapchain.clone(), image_i),
-                )
-                .then_signal_fence_and_flush();
-
-            fences[image_i as usize] = match future.map_err(Validated::unwrap) {
-                Ok(value) => Some(Arc::new(value)),
-                Err(VulkanError::OutOfDate) => {
-                    recreate_swapchain = true;
-                    None
-                }
-                Err(e) => {
-                    println!("failed to flush future: {e}");
-                    None
-                }
-            };
-
-            previous_fence_i = image_i;
+            t+=0.01;
         }
         _ => (),
     });
+}
+
+pub fn get_circle(allocators: Arc<MemAllocators>, t: usize) -> (VkIterBuffer<Vertex>, IndexBuffer) {
+    let circle = circle(t+5, 1.0);
+    let vert_buffer = VkIterBuffer::vertex(
+        allocators.clone(), 
+        circle.vertices
+    );
+
+    let idx_buffer = IndexBuffer::U32(VkIterBuffer::index(allocators.clone(), circle.indices).content);
+
+    (vert_buffer, idx_buffer)
 }
