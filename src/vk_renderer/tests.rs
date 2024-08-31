@@ -2,37 +2,30 @@ use crate::vk_renderer::buffer::VkIterBuffer;
 use crate::vk_renderer::command::{submit_cmd_buf, VkBuilder};
 use crate::vk_renderer::pipeline::VkComputePipeline;
 use crate::vk_renderer::shaders::mandelbrot_shader::{self, RESOLUTION};
-use core::sync;
 use std::sync::Arc;
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
 use vulkano::buffer::IndexBuffer;
-use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents, SubpassEndInfo};
+use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
-use vulkano::instance::InstanceOwned;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
-use vulkano::swapchain::{self, Surface, SwapchainCreateInfo, SwapchainPresentInfo};
-use vulkano::sync::GpuFuture;
-use vulkano::sync::{future::FenceSignalFuture, now};
-use vulkano::{device, Validated, VulkanError};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
 
 use crate::vk_renderer::Vk;
 
-use super::command::CommandBufferType;
 use super::geometry::fundamental::circle;
+use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
+use super::presenter::Presenter;
 use super::renderer::Renderer;
-use super::shaders::graphics_pipeline::{framebuffer, framebuffers, graphics_pipeline, render_pass};
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
-use super::{swapchain, MemAllocators};
+use super::MemAllocators;
 use super::vertex::Vertex;
 
 pub fn test() {
@@ -208,6 +201,12 @@ pub fn windowing() {
     let el = EventLoop::new();
 
     let mut renderer = Renderer::new(&el);
+    let circle = circle(16, 1.0);
+    renderer.meshes.push(
+        Mesh::new(&circle.vertices, &circle.indices, &renderer)
+    );
+
+    let mut presenter = Presenter::new(renderer.vk.clone());
 
     let mut t = 0.0;
 
@@ -222,28 +221,15 @@ pub fn windowing() {
             event: WindowEvent::Resized(_),
             ..
         } => {
-            renderer.presenter.window_resized = true;
+            presenter.window_resized = true;
         }
         Event::MainEventsCleared => {
-            renderer.update(get_circle(renderer.vk.allocators.clone(), t as usize));
-            renderer.presenter.recreate_swapchain = true;
-
-            dbg!(t);
+            // renderer.update(get_circle(renderer.vk.allocators.clone(), t as usize));
+            presenter.update(&renderer, renderer.vk.clone());
+            presenter.recreate_swapchain = true;
 
             t+=0.01;
         }
         _ => (),
     });
-}
-
-pub fn get_circle(allocators: Arc<MemAllocators>, t: usize) -> (VkIterBuffer<Vertex>, IndexBuffer) {
-    let circle = circle(t+5, 1.0);
-    let vert_buffer = VkIterBuffer::vertex(
-        allocators.clone(), 
-        circle.vertices
-    );
-
-    let idx_buffer = IndexBuffer::U32(VkIterBuffer::index(allocators.clone(), circle.indices).content);
-
-    (vert_buffer, idx_buffer)
 }

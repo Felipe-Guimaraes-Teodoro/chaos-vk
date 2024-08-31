@@ -1,7 +1,7 @@
 use glam::Vec3;
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex as VulkanoVertex};
 
-#[derive(BufferContents, VulkanoVertex)]
+#[derive(BufferContents, VulkanoVertex, Clone, Copy)]
 #[repr(C)]
 pub struct Vertex {
     #[format(R32G32_SFLOAT)]

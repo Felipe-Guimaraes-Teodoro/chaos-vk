@@ -7,5 +7,8 @@ pub mod vertex;
 pub mod tests;
 pub mod geometry;
 pub mod renderer;
+pub mod presenter;
+pub mod graphics;
+pub mod ecs;
 
 pub use vk::*;
