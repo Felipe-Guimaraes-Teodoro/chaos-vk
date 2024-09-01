@@ -55,6 +55,7 @@ pub mod compute_pipeline {
 pub mod graphics_pipeline {
     use std::sync::Arc;
 
+    use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
     use vulkano::format::Format;
     use vulkano::image::view::ImageView;
     use vulkano::image::Image;
@@ -66,7 +67,7 @@ pub mod graphics_pipeline {
     use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
     use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
     use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
-    use vulkano::pipeline::{GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo};
+    use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
     use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
     use vulkano::shader::ShaderModule;
     use vulkano::swapchain::Swapchain;
@@ -182,6 +183,28 @@ pub mod graphics_pipeline {
         )
         .unwrap()
     }
+
+    pub fn descriptor_set(
+        vk: Arc<Vk>, 
+        graphics_pipeline: Arc<GraphicsPipeline>,
+        writes: impl IntoIterator<Item = WriteDescriptorSet>,
+    ) -> (Arc<PersistentDescriptorSet>, usize) {
+        let descriptor_set_allocator = vk.allocators.descriptor_set.clone();
+        let pipeline_layout = graphics_pipeline.layout();
+        let descriptor_set_layouts = pipeline_layout.set_layouts();
+
+        let descriptor_set_layout_index = 0;
+        let descriptor_set_layout = descriptor_set_layouts
+            .get(descriptor_set_layout_index)
+            .unwrap();
+        (PersistentDescriptorSet::new(
+            &descriptor_set_allocator,
+            descriptor_set_layout.clone(),
+            writes,
+            [],
+        )
+        .unwrap(), descriptor_set_layout_index)
+    }
 }
 
 pub mod vertex_shader {
@@ -192,8 +215,14 @@ pub mod vertex_shader {
 
             layout(location = 0) in vec2 pos;
 
+            layout(set = 0, binding = 0) uniform UniformBuffer {
+                mat4 model;
+                mat4 view;
+                mat4 proj;
+            } ubo;
+
             void main() {
-                gl_Position = vec4(pos, 0.0, 1.0);
+                gl_Position = ubo.model * ubo.view * ubo.proj * vec4(pos, 0.0, 1.0);
             }
         ",
     }

@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
-use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::{GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
+use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::WriteDescriptorSet, pipeline::{GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
 use winit::event_loop::EventLoop;
 
 use crate::vk_renderer::{buffer::VkIterBuffer, Vk};
 
-use super::{graphics::mesh::Mesh, presenter::Presenter, vertex::Vertex};
+use super::{graphics::{camera::Camera, mesh::{Mesh, UniformBuffer}}, presenter::Presenter, shaders::graphics_pipeline, vertex::Vertex};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,
+
+    pub camera: Camera,
     
     pub meshes: Vec<Mesh>,
 } 
@@ -17,8 +19,11 @@ impl Renderer {
     pub fn new(el: &EventLoop<()>) -> Self {
         let vk = Arc::new(Vk::new(&el));
 
+        let camera = Camera::new();
+
         Self {
             vk,
+            camera,
             meshes: vec![],
         }
     }
@@ -29,6 +34,8 @@ impl Renderer {
         pipeline: Arc<GraphicsPipeline>,
         framebuffers: Vec<Arc<Framebuffer>>,
     ) -> Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> {
+        let (view, proj) = (renderer.camera.get_view(), renderer.camera.get_proj());
+
         framebuffers
             .iter()
             .map(|framebuffer| {
@@ -55,13 +62,27 @@ impl Renderer {
                     .unwrap();
 
                 for mesh in &renderer.meshes {
+                    let ubo = UniformBuffer::create(
+                        renderer, 
+                        mesh.get_model(), 
+                        view,
+                        proj,
+                    );
+
+                    let (descriptor_set, idx) = graphics_pipeline::descriptor_set(
+                        vk.clone(), 
+                        pipeline.clone(), 
+                        [WriteDescriptorSet::buffer(0, ubo._content.clone())]
+                    );
+
                     builder
                         .bind_descriptor_sets(
                             vulkano::pipeline::PipelineBindPoint::Graphics, 
                             pipeline.layout().clone(), 
                             0, 
-                            
+                            descriptor_set
                         )
+                        .unwrap()
                         .bind_vertex_buffers(0, mesh.vbo.content.clone())
                         .unwrap()
                         .bind_index_buffer(IndexBuffer::U32(mesh.ebo.content.clone()))

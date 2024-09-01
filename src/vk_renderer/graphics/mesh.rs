@@ -58,12 +58,12 @@ impl Mesh {
         }
     }
 
-    pub fn get_model(&self) {
+    pub fn get_model(&self) -> [[f32; 4]; 4] {
         let model_matrix = 
             Mat4::from_translation(self.position) *
             Mat4::from_quat(self.rotation) *
             Mat4::from_scale(self.scale);
 
-        let model = model_matrix.to_cols_array_2d();
+        model_matrix.to_cols_array_2d()
     }
 }
