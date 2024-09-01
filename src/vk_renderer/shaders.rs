@@ -53,21 +53,25 @@ pub mod compute_pipeline {
 /// of pipelines involving both vertex and
 /// fragment shaders 
 pub mod graphics_pipeline {
+    use std::collections::{HashMap, HashSet};
+    use std::hash::RandomState;
     use std::sync::Arc;
 
     use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
     use vulkano::format::Format;
     use vulkano::image::view::ImageView;
-    use vulkano::image::Image;
+    use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
+    use vulkano::memory::allocator::AllocationCreateInfo;
     use vulkano::pipeline::graphics::color_blend::{ColorBlendAttachmentState, ColorBlendState};
+    use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
     use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
     use vulkano::pipeline::graphics::multisample::MultisampleState;
-    use vulkano::pipeline::graphics::rasterization::RasterizationState;
+    use vulkano::pipeline::graphics::rasterization::{CullMode, RasterizationState};
     use vulkano::pipeline::graphics::vertex_input::{Vertex as VulcanoVertex, VertexDefinition};
     use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
     use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
     use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
-    use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
+    use vulkano::pipeline::{DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
     use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
     use vulkano::shader::ShaderModule;
     use vulkano::swapchain::Swapchain;
@@ -76,9 +80,18 @@ pub mod graphics_pipeline {
     use crate::vk_renderer::Vk;
 
     pub fn render_pass(vk: Arc<Vk>, swapchain: Option<Arc<Swapchain>>) -> Arc<RenderPass> {
+        /* 
+        for now, single pass renderpasses will do the job.
+        although for the future, i might want to implement 
+        deferred rendering.
+
+        For that, it would be interesting to use:
+            ordered_passes_renderpass!()
+        */
+        
         vulkano::single_pass_renderpass!(vk.device.clone(),
             attachments: {
-                color: {
+                color_attachment: {
                     format: match swapchain {
                         Some(swapchain) => swapchain.image_format(),
                         None => Format::R8G8B8A8_UNORM,
@@ -87,10 +100,17 @@ pub mod graphics_pipeline {
                     load_op: Clear,
                     store_op: Store,
                 },
+
+                depth_attachment: {
+                    format: Format::D16_UNORM,
+                    samples: 1,
+                    load_op: Clear,
+                    store_op: DontCare,
+                }
             },
             pass: {
-                color: [color],
-                depth_stencil: {},
+                color: [color_attachment],
+                depth_stencil: {depth_attachment},
             },
         )
         .unwrap()
@@ -109,7 +129,26 @@ pub mod graphics_pipeline {
         .unwrap()
     }
 
-    pub fn framebuffers(rp: Arc<RenderPass>, images: &Vec<Arc<Image>>) -> Vec<Arc<Framebuffer>> {
+    pub fn framebuffers(
+        vk: Arc<Vk>,
+        rp: Arc<RenderPass>, 
+        images: &Vec<Arc<Image>>
+    ) -> Vec<Arc<Framebuffer>> {
+        let depth_image = ImageView::new_default(
+                Image::new(
+                vk.allocators.memory.clone(), 
+                ImageCreateInfo {
+                    format: Format::D16_UNORM,
+                    extent: images[0].extent(),
+                    usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
+                    ..Default::default()
+                }, 
+                AllocationCreateInfo::default(),
+            )
+            .unwrap()
+        )
+        .unwrap();
+
         images
             .iter()
             .map(|image| {
@@ -117,7 +156,7 @@ pub mod graphics_pipeline {
                 Framebuffer::new(
                     rp.clone(),
                     FramebufferCreateInfo {
-                        attachments: vec![view],
+                        attachments: vec![view, depth_image.clone()],
                         ..Default::default()
                     },
                 )
@@ -126,6 +165,7 @@ pub mod graphics_pipeline {
             .collect::<Vec<_>>()
     }
 
+    #[allow(deprecated)]
     pub fn graphics_pipeline(
         vk: Arc<Vk>,
         vs: Arc<ShaderModule>,
@@ -155,7 +195,7 @@ pub mod graphics_pipeline {
 
         let subpass = Subpass::from(rp.clone(), 0).unwrap();
 
-        GraphicsPipeline::new(
+        let pipeline = GraphicsPipeline::new(
             vk.device.clone(), 
             None, 
             GraphicsPipelineCreateInfo {
@@ -170,18 +210,29 @@ pub mod graphics_pipeline {
                     ..Default::default()
                 }),
 
-                rasterization_state: Some(RasterizationState::default()),
+                rasterization_state: Some(RasterizationState {
+                    cull_mode: CullMode::None,
+                    ..Default::default()
+                }),
                 multisample_state: Some(MultisampleState::default()),
                 color_blend_state: Some(ColorBlendState::with_attachment_states(
                     subpass.num_color_attachments(),
                     ColorBlendAttachmentState::default(),
                 )),
 
+                depth_stencil_state: Some(DepthStencilState::simple_depth_test()),
+
                 subpass: Some(subpass.into()),
                 ..GraphicsPipelineCreateInfo::layout(layout)
             },
         )
-        .unwrap()
+        .unwrap();
+
+        let state = pipeline.dynamic_state();
+
+        dbg!(state.get(&DynamicState::CullMode));
+
+        pipeline
     }
 
     pub fn descriptor_set(

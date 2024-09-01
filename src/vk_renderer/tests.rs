@@ -5,8 +5,8 @@ use crate::vk_renderer::shaders::mandelbrot_shader::{self, RESOLUTION};
 use std::sync::Arc;
 
 use glam::vec3;
+use glfw::Context;
 use image::{ImageBuffer, Rgba};
-use vulkano::buffer::IndexBuffer;
 use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::format::Format;
@@ -14,18 +14,16 @@ use vulkano::image::view::{ImageView, ImageViewCreateInfo};
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
 
 use crate::vk_renderer::Vk;
 
+use super::events::event_loop::EventLoop;
 use super::geometry::fundamental::circle;
 use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
 use super::presenter::Presenter;
 use super::renderer::Renderer;
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
-use super::MemAllocators;
 use super::vertex::Vertex;
 
 pub fn test() {
@@ -198,19 +196,38 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 }
 
 pub fn windowing() {
-    let el = EventLoop::new();
+    let mut el = EventLoop::new(600, 600);
 
-    let mut renderer = Renderer::new(&el);
+    let mut renderer = Renderer::new(&mut el);
+
     let circle = circle(16, 1.0);
-    renderer.meshes.push(
-        Mesh::new(&circle.vertices, &circle.indices, &renderer)
-    );
+    for i in 0..25{
+        let mut mesh = Mesh::new(&circle.vertices, &circle.indices, &renderer);
+        mesh.position += vec3(i as f32, i as f32, i as f32) / 5.0;
+        renderer.meshes.push(
+            mesh
+        );
+    }
 
-    let mut presenter = Presenter::new(renderer.vk.clone());
+    let mut presenter = Presenter::new(renderer.vk.clone(), &el);
 
     let mut t = 0.0;
 
-    el.run(move |event, _, control_flow| match event {
+    while !el.window.should_close() {
+        el.update();
+
+        el.window.swap_buffers();
+        el.glfw.poll_events();
+
+        presenter.recreate_swapchain = true;
+        presenter.update(&renderer, renderer.vk.clone(), &el);
+
+        t += 0.01;
+    }
+}
+
+/* 
+el.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..
@@ -232,4 +249,4 @@ pub fn windowing() {
         }
         _ => (),
     });
-}
+*/

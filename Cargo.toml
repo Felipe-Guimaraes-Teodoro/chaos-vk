@@ -6,7 +6,8 @@ edition = "2021"
 [dependencies]
 bytemuck = "1.16.3"
 glam = "0.29.0"
+glfw = { version = "0.56.0", features = ["vulkan"] }
 image = "0.25.2"
 vulkano = "0.34.0"
 vulkano-shaders = "0.34.0"
-winit = "0.28.0"
+winapi = "0.3.9"

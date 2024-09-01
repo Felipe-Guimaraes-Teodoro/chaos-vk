@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, CommandBufferExecFuture, PrimaryAutoCommandBuffer}, image::Image, render_pass::Framebuffer, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{future::{FenceSignalFuture, JoinFuture}, now, GpuFuture}, Validated, VulkanError};
+use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, CommandBufferExecFuture, PrimaryAutoCommandBuffer}, image::Image, render_pass::Framebuffer, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{future::{FenceSignalFuture, JoinFuture}, now, GpuFuture}, Validated, VulkanError};
 
-use super::{buffer::VkIterBuffer, pipeline::VkGraphicsPipeline, renderer::Renderer, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, vertex::Vertex, Vk};
+use super::{events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, renderer::Renderer, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, Vk};
 
 
 type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFuture<Box<dyn GpuFuture>, SwapchainAcquireFuture>>>>>;
@@ -22,8 +22,8 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
  }
 
  impl Presenter {
-    pub fn new(vk: Arc<Vk>) -> Self {
-        let (swapchain, images) = swapchain(vk.clone());
+    pub fn new(vk: Arc<Vk>, el: &EventLoop) -> Self {
+        let (swapchain, images) = swapchain(vk.clone(), el);
 
         let pipeline = VkGraphicsPipeline::new(
             vk.clone(), 
@@ -33,6 +33,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         );
 
         let framebuffers = framebuffers(
+            vk.clone(),
             render_pass( vk.clone(), Some(swapchain.clone()) ),
             &images.clone()
         );
@@ -55,21 +56,22 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         }
     }
 
-    pub fn update(&mut self, renderer: &Renderer, vk: Arc<Vk>) {
+    pub fn update(&mut self, renderer: &Renderer, vk: Arc<Vk>, el: &EventLoop) {
         if self.window_resized || self.recreate_swapchain {
             self.recreate_swapchain = false;
 
-            let new_dimensions = vk.window.inner_size();
+            let (new_w, new_h) = el.window.get_size();
 
             let (new_swapchain, new_images) = self.swapchain
                 .recreate(SwapchainCreateInfo {
-                    image_extent: new_dimensions.into(),
+                    image_extent: [new_w as u32, new_h as u32],
                     ..self.swapchain.create_info()
                 })
                 .expect("failed to recreate swapchain");
 
             self.swapchain = new_swapchain;
             let new_framebuffers = framebuffers(
+                vk.clone(),
                 self.pipeline.render_pass.clone(),
                 &new_images
             );
@@ -77,7 +79,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
             if self.window_resized {
                 self.window_resized = false;
 
-                self.pipeline.viewport.extent = new_dimensions.into();
+                self.pipeline.viewport.extent = [new_w as f32, new_h as f32];
                 self.pipeline.graphics_pipeline = crate::vk_renderer::shaders::graphics_pipeline::graphics_pipeline(
                     vk.clone(),
                     self.pipeline.vs.clone(),

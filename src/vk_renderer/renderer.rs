@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
 use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::WriteDescriptorSet, pipeline::{GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
-use winit::event_loop::EventLoop;
 
-use crate::vk_renderer::{buffer::VkIterBuffer, Vk};
+use crate::vk_renderer::Vk;
 
-use super::{graphics::{camera::Camera, mesh::{Mesh, UniformBuffer}}, presenter::Presenter, shaders::graphics_pipeline, vertex::Vertex};
+use super::{events::event_loop::EventLoop, graphics::{camera::Camera, mesh::{Mesh, UniformBuffer}}, shaders::graphics_pipeline};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,
@@ -16,8 +15,8 @@ pub struct Renderer {
 } 
 
 impl Renderer {
-    pub fn new(el: &EventLoop<()>) -> Self {
-        let vk = Arc::new(Vk::new(&el));
+    pub fn new(el: &mut EventLoop) -> Self {
+        let vk = Arc::new(Vk::new(el));
 
         let camera = Camera::new();
 
@@ -36,7 +35,7 @@ impl Renderer {
     ) -> Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> {
         let (view, proj) = (renderer.camera.get_view(), renderer.camera.get_proj());
 
-        framebuffers
+        let command_buffers: Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> = framebuffers
             .iter()
             .map(|framebuffer| {
                 let mut builder = AutoCommandBufferBuilder::primary(
@@ -49,7 +48,7 @@ impl Renderer {
                 builder
                     .begin_render_pass(
                         RenderPassBeginInfo {
-                            clear_values: vec![Some([0.0, 0.0, 1.0, 1.0].into())],
+                            clear_values: vec![Some([0.1, 0.2, 0.3, 1.0].into()), Some(1.0.into())],
                             ..RenderPassBeginInfo::framebuffer(framebuffer.clone())
                         },
                         SubpassBeginInfo {
@@ -69,7 +68,7 @@ impl Renderer {
                         proj,
                     );
 
-                    let (descriptor_set, idx) = graphics_pipeline::descriptor_set(
+                    let (descriptor_set, _idx) = graphics_pipeline::descriptor_set(
                         vk.clone(), 
                         pipeline.clone(), 
                         [WriteDescriptorSet::buffer(0, ubo._content.clone())]
@@ -100,21 +99,12 @@ impl Renderer {
                 builder
                     .end_render_pass(Default::default())
                     .unwrap();
-                    /* 
-                builder
-                    .bind_vertex_buffers(0, thing.0.content.clone())
-                    .unwrap()
-                    .bind_index_buffer(thing.1.clone())
-                    .unwrap()
-                    .draw_indexed(thing.1.len() as u32, 1, 0, 0, 0)
-                    .unwrap()
-                    .end_render_pass(Default::default())
-                    .unwrap();
-                    */
 
                 builder.build().unwrap()
             })
-            .collect()
+            .collect();
+
+        command_buffers
     }
 
     /* todo: on presenter.update have renderer update the command buffers and send it as an argument to presenter.update instead of getting the commandbuffers from renderer otseçf */

@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
 use glam::{Mat4, Quat, Vec3};
-use vulkano::{buffer::{BufferContents, IndexBuffer}, shader::ShaderModule};
+use vulkano::buffer::BufferContents;
 
 use crate::vk_renderer::{buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex};
 

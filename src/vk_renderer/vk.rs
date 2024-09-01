@@ -9,8 +9,9 @@ use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::swapchain::{Surface, Swapchain, SwapchainCreateInfo};
 use vulkano::VulkanLibrary;
 use vulkano::instance::{Instance, InstanceCreateInfo};
-use winit::event_loop::EventLoop;
-use winit::window::{Window, WindowBuilder};
+use winapi::um::libloaderapi::GetModuleHandleW;
+
+use super::events::event_loop::EventLoop;
 
 pub struct MemAllocators {
     pub memory: Arc<StandardMemoryAllocator>,
@@ -46,6 +47,7 @@ impl MemAllocators {
     STILL NEEDS BETTER INITIALIZING: CHECK WHETHER OR NOT
     DEVICE SUPPORTS SWAPCHAIN
 */
+
 pub struct Vk {
     pub physical_device: Arc<PhysicalDevice>,
     pub device: Arc<Device>,
@@ -54,25 +56,31 @@ pub struct Vk {
     pub allocators: Arc<MemAllocators>,
     pub instance: Arc<Instance>,
     pub surface: Arc<Surface>,
-    pub window: Arc<Window>
 }
 
 impl Vk {
-    pub fn new(el: &EventLoop<()>) -> Self {     
+    /* todo: create surface based on HasRawWindowHandle trait for cross platform compat */
+    pub fn new(el: &mut EventLoop) -> Self {     
         let library = VulkanLibrary::new().expect("no local Vulkan library/DLL");
-        let required_extensions = Surface::required_extensions(el);
+        
+        let required_extensions = el.glfw.get_required_instance_extensions().unwrap();
         let instance = Instance::new(
             library, 
             InstanceCreateInfo {
-                enabled_extensions: required_extensions,
+                enabled_extensions: required_extensions.iter().map(|string| string.as_str()).collect(),
                 ..Default::default()
             }
         )
         .expect("failed to create instance");
 
-        let window = Arc::new(WindowBuilder::new().build(el).unwrap());
-        let surface = Surface::from_window(instance.clone(), window.clone()).unwrap();
-    
+        let hwnd = el.window.get_win32_window();
+        let hinstance = unsafe { GetModuleHandleW(core::ptr::null()) as *const _ };
+
+        let surface = unsafe {
+            Surface::from_win32(instance.clone(), hinstance, hwnd, None)
+                .expect("Failed to create Vulkan surface")
+        };
+
         let device_extensions = DeviceExtensions {
             khr_swapchain: true,
             ..DeviceExtensions::empty()
@@ -120,10 +128,10 @@ impl Vk {
                 },
             )
             .expect("failed to create device");
+
+        let allocators = MemAllocators::new(device.clone());
     
         let queue = queues.next().unwrap();
-    
-        let allocators = MemAllocators::new(device.clone());
 
         Self {
             queue,
@@ -133,19 +141,19 @@ impl Vk {
             allocators: Arc::new(allocators),
             instance: instance,
             surface,
-            window,
         }
     }
 }
 
 pub fn swapchain(
-    vk: Arc<Vk>
+    vk: Arc<Vk>,
+    el: &EventLoop,
 ) -> (Arc<vulkano::swapchain::Swapchain>, Vec<Arc<vulkano::image::Image>>) {
     let caps = vk.physical_device
         .surface_capabilities(&vk.surface, Default::default())
         .expect("failed to get surface caps");
 
-    let dims = vk.window.inner_size();
+    let (w, h) = el.window.get_size();
     let composite_alpha = caps.supported_composite_alpha
         .into_iter()
         .next()
@@ -161,7 +169,7 @@ pub fn swapchain(
         SwapchainCreateInfo {
             min_image_count: caps.min_image_count + 1,
             image_format,
-            image_extent: dims.into(),
+            image_extent: [w as u32, h as u32],
             image_usage: ImageUsage::COLOR_ATTACHMENT,
             composite_alpha,
             ..Default::default()
