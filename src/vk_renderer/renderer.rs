@@ -4,7 +4,7 @@ use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBu
 
 use crate::vk_renderer::Vk;
 
-use super::{events::event_loop::EventLoop, graphics::{camera::Camera, mesh::{Mesh, UniformBuffer}}, shaders::graphics_pipeline};
+use super::{command::VkBuilder, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::{Mesh, UniformBuffer}}, shaders::graphics_pipeline};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,
@@ -38,14 +38,9 @@ impl Renderer {
         let command_buffers: Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> = framebuffers
             .iter()
             .map(|framebuffer| {
-                let mut builder = AutoCommandBufferBuilder::primary(
-                    &vk.allocators.command,
-                    vk.queue.queue_family_index(),
-                    CommandBufferUsage::MultipleSubmit,
-                )
-                .unwrap();
+                let mut builder = VkBuilder::new_multiple(renderer.vk.clone());
 
-                builder
+                builder.0
                     .begin_render_pass(
                         RenderPassBeginInfo {
                             clear_values: vec![Some([0.1, 0.2, 0.3, 1.0].into()), Some(1.0.into())],
@@ -74,7 +69,7 @@ impl Renderer {
                         [WriteDescriptorSet::buffer(0, ubo._content.clone())]
                     );
 
-                    builder
+                    builder.0
                         .bind_descriptor_sets(
                             vulkano::pipeline::PipelineBindPoint::Graphics, 
                             pipeline.layout().clone(), 
@@ -96,11 +91,11 @@ impl Renderer {
                         .unwrap();
                 }
 
-                builder
+                builder.0
                     .end_render_pass(Default::default())
                     .unwrap();
 
-                builder.build().unwrap()
+                builder.0.build().unwrap()
             })
             .collect();
 

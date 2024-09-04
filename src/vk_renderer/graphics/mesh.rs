@@ -22,7 +22,7 @@ impl UniformBuffer {
             proj,
         };
         
-        VkBuffer::new(renderer.vk.allocators.clone(), data)
+        VkBuffer::uniform(renderer.vk.allocators.clone(), data)
     }
 }
 

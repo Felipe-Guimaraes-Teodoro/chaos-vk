@@ -1,7 +1,7 @@
 use crate::vk_renderer::buffer::VkIterBuffer;
 use crate::vk_renderer::command::{submit_cmd_buf, VkBuilder};
 use crate::vk_renderer::pipeline::VkComputePipeline;
-use crate::vk_renderer::shaders::mandelbrot_shader::{self, RESOLUTION};
+use crate::vk_renderer::shaders::mandelbrot_shader;
 use std::sync::Arc;
 
 use glam::vec3;
@@ -48,7 +48,7 @@ pub fn mandelbrot_image(vk: Arc<Vk>) {
         ImageCreateInfo {
             image_type: ImageType::Dim2d,
             format: Format::R8G8B8A8_UNORM,
-            extent: [RESOLUTION, RESOLUTION, 1],
+            extent: [1024, 1024, 1],
             usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_SRC,
             ..Default::default()
         },
@@ -64,7 +64,7 @@ pub fn mandelbrot_image(vk: Arc<Vk>) {
 
     let buffer = VkIterBuffer::transfer_dst(
         vk.allocators.clone(), 
-        (0..RESOLUTION*RESOLUTION*4).map(|_| 0u8)
+        (0..1024*1024*4).map(|_| 0u8)
     );
 
     let mut pipeline = VkComputePipeline::new(
@@ -86,7 +86,7 @@ pub fn mandelbrot_image(vk: Arc<Vk>) {
             pipeline.descriptor_set.unwrap()
         )
         .unwrap()
-        .dispatch([RESOLUTION/8, RESOLUTION/8, 1])
+        .dispatch([1024/8, 1024/8, 1])
         .unwrap()
         .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(
             image.clone(),
@@ -102,7 +102,7 @@ pub fn mandelbrot_image(vk: Arc<Vk>) {
     dbg!(now.elapsed());
 
     let result = buffer.content.read().unwrap();
-    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(RESOLUTION, RESOLUTION, &result[..])
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &result[..])
         .unwrap();
 
     image.save("image.png").unwrap();
@@ -111,8 +111,7 @@ pub fn mandelbrot_image(vk: Arc<Vk>) {
 }
 
 pub fn rendering_pipeline(vk: Arc<Vk>) {
-    
-    dbg!(RESOLUTION);
+    dbg!(1024);
     let image = Image::new(
         vk.allocators.memory.clone(),
         ImageCreateInfo {
@@ -131,7 +130,7 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 
     let buffer = VkIterBuffer::transfer_dst(
         vk.allocators.clone(), 
-        (0..RESOLUTION*RESOLUTION*4).map(|_| 0u8)
+        (0..1024*1024*4).map(|_| 0u8)
     );
 
     let vertices = vec![
@@ -187,7 +186,7 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 
     let result = buffer.content.read().unwrap();
 
-    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(RESOLUTION, RESOLUTION, &result[..])
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &result[..])
         .unwrap();
 
     image.save("loco.png").unwrap();

@@ -22,7 +22,7 @@ struct ExampleStruct {
 
 fn _example_fn(allocators: Arc<MemAllocators>) {
     let example_data = ExampleStruct{a: 0, b: 2};
-    let example_buffer = VkBuffer::new(allocators, example_data);
+    let example_buffer = VkBuffer::uniform(allocators, example_data);
 
     let _read = example_buffer._content.read().unwrap();
 }
@@ -84,7 +84,7 @@ pub struct VkBuffer<T: BufferContents> {
 }
 
 impl<T: BufferContents> VkBuffer<T> {
-    pub fn new(allocators: Arc<MemAllocators>, data: T) -> Self {
+    pub fn uniform(allocators: Arc<MemAllocators>, data: T) -> Self {
         let buffer = Buffer::from_data(
             allocators.memory.clone(),
             BufferCreateInfo {
@@ -94,6 +94,27 @@ impl<T: BufferContents> VkBuffer<T> {
             AllocationCreateInfo {
                 memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
                     | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE, // MemoryTypeFilter::HOST_RANDOM_ACCESS is more suitable if data is being written continuously to this buffer
+                ..Default::default()
+            },
+            data,
+        )
+        .expect("failed to create buffer");
+
+        Self {
+            _content: buffer,
+        }
+    }
+
+    pub fn storage(allocators: Arc<MemAllocators>, data: T) -> Self {
+        let buffer = Buffer::from_data(
+            allocators.memory.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::STORAGE_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+                    | MemoryTypeFilter::HOST_RANDOM_ACCESS,
                 ..Default::default()
             },
             data,

@@ -20,6 +20,7 @@ pub struct EventHandler {
     pub lmb: bool,
     pub rmb: bool,
 }
+
 impl EventHandler {
     pub fn new() -> Self {
         Self { 

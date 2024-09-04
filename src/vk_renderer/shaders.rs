@@ -295,8 +295,6 @@ pub mod fragment_shader {
 }
 
 pub mod mandelbrot_shader {
-    pub const RESOLUTION: u32 = 1024;
-
     vulkano_shaders::shader!{
         ty: "compute",
         src: r"
