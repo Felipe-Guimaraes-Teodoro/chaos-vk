@@ -1,6 +1,8 @@
 use glam::vec2;
 use glfw::*;
 
+use super::super::renderer::Renderer;
+
 use super::event_handler::EventHandler;
 
 pub struct EventLoop {
@@ -22,10 +24,6 @@ impl EventLoop {
         let mut glfw = glfw::init(fail_on_errors!()).unwrap();
         
         // glfw.window_hint(glfw::WindowHint::TransparentFramebuffer(true));
-        glfw.window_hint(glfw::WindowHint::Decorated(true));
-        glfw.window_hint(glfw::WindowHint::DoubleBuffer(true));
-        glfw.window_hint(glfw::WindowHint::ContextVersionMajor(3));
-        glfw.window_hint(glfw::WindowHint::ContextVersionMinor(3));
         // glfw.window_hint(glfw::WindowHint::Samples(Some(4)));
 
         let (mut window, events) = glfw.create_window(w, h, "Hello this is window", glfw::WindowMode::Windowed)
@@ -56,7 +54,7 @@ impl EventLoop {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, renderer: &mut Renderer) {
         self.dt = self.now.elapsed().as_secs_f32() * self.timescale;
         self.time += self.dt;
         self.now = std::time::Instant::now();
@@ -115,6 +113,7 @@ impl EventLoop {
 
                 glfw::WindowEvent::FramebufferSize(w, h) => {
                     self.event_handler.on_window_resize(w, h);
+                    renderer.presenter.window_resized = true;
                 }
                 _ => {},
             }

@@ -66,7 +66,7 @@ pub mod graphics_pipeline {
     use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
     use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
     use vulkano::pipeline::graphics::multisample::MultisampleState;
-    use vulkano::pipeline::graphics::rasterization::{CullMode, RasterizationState};
+    use vulkano::pipeline::graphics::rasterization::{CullMode, PolygonMode, RasterizationState};
     use vulkano::pipeline::graphics::vertex_input::{Vertex as VulcanoVertex, VertexDefinition};
     use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
     use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
@@ -237,6 +237,7 @@ pub mod graphics_pipeline {
 
     pub fn descriptor_set(
         vk: Arc<Vk>, 
+        idx: usize,
         graphics_pipeline: Arc<GraphicsPipeline>,
         writes: impl IntoIterator<Item = WriteDescriptorSet>,
     ) -> (Arc<PersistentDescriptorSet>, usize) {
@@ -244,10 +245,11 @@ pub mod graphics_pipeline {
         let pipeline_layout = graphics_pipeline.layout();
         let descriptor_set_layouts = pipeline_layout.set_layouts();
 
-        let descriptor_set_layout_index = 0;
+        let descriptor_set_layout_index = idx;
         let descriptor_set_layout = descriptor_set_layouts
             .get(descriptor_set_layout_index)
             .unwrap();
+        
         (PersistentDescriptorSet::new(
             &descriptor_set_allocator,
             descriptor_set_layout.clone(),
@@ -256,6 +258,7 @@ pub mod graphics_pipeline {
         )
         .unwrap(), descriptor_set_layout_index)
     }
+
 }
 
 pub mod vertex_shader {
@@ -264,16 +267,21 @@ pub mod vertex_shader {
         src: r"
             #version 460
 
-            layout(location = 0) in vec2 pos;
+            layout(location = 0) in vec3 pos;
+            layout(location = 1) in vec3 col;
 
-            layout(set = 0, binding = 0) uniform UniformBuffer {
+            layout(set = 0, binding = 1) uniform UniformBuffer {
                 mat4 model;
                 mat4 view;
                 mat4 proj;
             } ubo;
 
+             layout(location = 1) out vec3 out_col;
+
             void main() {
-                gl_Position = ubo.model * ubo.view * ubo.proj * vec4(pos, 0.0, 1.0);
+                gl_Position = ubo.proj * ubo.view * ubo.model * vec4(pos, 1.0);
+
+                out_col = col;
             }
         ",
     }
@@ -285,10 +293,13 @@ pub mod fragment_shader {
         src: r"
             #version 460
 
+            layout(location = 1) in vec3 out_col;
+
             layout(location = 0) out vec4 f_color;
 
+
             void main() {
-                f_color = vec4(1.0, 0.0, 0.0, 1.0);
+                f_color = vec4(out_col, 1.0);
             }
         ",
     }

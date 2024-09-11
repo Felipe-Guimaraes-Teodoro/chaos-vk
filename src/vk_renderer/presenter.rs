@@ -56,7 +56,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         }
     }
 
-    pub fn update(&mut self, renderer: &Renderer, vk: Arc<Vk>, el: &EventLoop) {
+    pub fn update(&mut self, vk: Arc<Vk>, el: &EventLoop) {
         if self.window_resized || self.recreate_swapchain {
             self.recreate_swapchain = false;
 
@@ -70,7 +70,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                 .expect("failed to recreate swapchain");
 
             self.swapchain = new_swapchain;
-            let new_framebuffers = framebuffers(
+            self.framebuffers = framebuffers(
                 vk.clone(),
                 self.pipeline.render_pass.clone(),
                 &new_images
@@ -89,13 +89,6 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                 );
 
             }
-
-            self.command_buffers = Renderer::get_command_buffers(
-                vk.clone(),
-                renderer,
-                self.pipeline.graphics_pipeline.clone(),
-                new_framebuffers,
-            );
         }
 
         let (image_i, suboptimal, acquire_future) =

@@ -4,7 +4,7 @@ use crate::vk_renderer::pipeline::VkComputePipeline;
 use crate::vk_renderer::shaders::mandelbrot_shader;
 use std::sync::Arc;
 
-use glam::vec3;
+use glam::{vec3, Quat};
 use glfw::Context;
 use image::{ImageBuffer, Rgba};
 use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
@@ -19,9 +19,9 @@ use crate::vk_renderer::Vk;
 
 use super::events::event_loop::EventLoop;
 use super::geometry::fundamental::circle;
+use super::graphics::camera::ProjectionType;
 use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
-use super::presenter::Presenter;
 use super::renderer::Renderer;
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
 use super::vertex::Vertex;
@@ -195,33 +195,77 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 }
 
 pub fn windowing() {
-    let mut el = EventLoop::new(600, 600);
+    let mut el = EventLoop::new(1000, 1000);
 
     let mut renderer = Renderer::new(&mut el);
+    renderer.presenter.window_resized = true;
 
     let circle = circle(16, 1.0);
-    for i in 0..25{
-        let mut mesh = Mesh::new(&circle.vertices, &circle.indices, &renderer);
-        mesh.position += vec3(i as f32, i as f32, i as f32) / 5.0;
+
+    {
+        let mut vertices = vec![];
+    
+        let mut indices = vec![];
+    
+        for i in 0..125000 {
+            let mut vertices_i = Vec::new();
+
+            for v in &circle.vertices {
+                let mut pos = v.pos;
+                let mut col = v.col;
+
+                let w = 50;
+                let d = 50;
+
+                pos[0] += (i / (w * d)) as f32;
+                pos[1] += ((i % (w * d)) / w) as f32;
+                pos[2] += (i % w) as f32;
+
+                col[0] = (i / (w * d)) as f32 / w as f32;
+                col[1] = ((i % (w * d)) / w) as f32 / d as f32;
+                col[2] = (i % w) as f32 / w as f32;
+            
+                let n_v = Vertex { pos, col };
+            
+                vertices_i.push(n_v);
+            }
+
+            let indices_i = circle.indices.iter().map(|&idx| {
+                idx + indices.len() as u32
+            }).collect::<Vec<u32>>();
+
+            vertices.extend(vertices_i);
+
+            indices.extend(indices_i);
+        }
+    
+        let mesh = Mesh::new(&vertices, &indices, &renderer);
+        
+        
         renderer.meshes.push(
             mesh
         );
     }
+    
 
-    let mut presenter = Presenter::new(renderer.vk.clone(), &el);
-
-    let mut t = 0.0;
+    el.glfw.set_swap_interval(glfw::SwapInterval::Sync(0));
 
     while !el.window.should_close() {
-        el.update();
+        el.update(&mut renderer);
+
+        renderer.camera.input(&el);
+        renderer.camera.mouse_callback(el.event_handler.mouse_pos, &el.window);
+        renderer.camera.update(renderer.camera.pos);
+
+        if el.is_key_down(glfw::Key::LeftAlt) {
+            el.window.set_cursor_mode(glfw::CursorMode::Normal);
+        } else {
+            el.window.set_cursor_mode(glfw::CursorMode::Disabled);
+        }
+        
+        renderer.update(&mut el);
 
         el.window.swap_buffers();
-        el.glfw.poll_events();
-
-        presenter.recreate_swapchain = true;
-        presenter.update(&renderer, renderer.vk.clone(), &el);
-
-        t += 0.01;
     }
 }
 

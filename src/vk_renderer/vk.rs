@@ -169,6 +169,7 @@ pub fn swapchain(
         SwapchainCreateInfo {
             min_image_count: caps.min_image_count + 1,
             image_format,
+            present_mode: vulkano::swapchain::PresentMode::Fifo,
             image_extent: [w as u32, h as u32],
             image_usage: ImageUsage::COLOR_ATTACHMENT,
             composite_alpha,
