@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use vulkano::{buffer::{Buffer, IndexBuffer}, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::{DescriptorSet, WriteDescriptorSet}, pipeline::{GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
+use glam::Mat4;
+use rayon::iter::{IntoParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::{GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
 
 use crate::vk_renderer::Vk;
 
-use super::{command::VkBuilder, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::{Mesh, UniformBuffer}}, presenter::Presenter, shaders::graphics_pipeline::{self, descriptor_set}};
+use super::{command::VkBuilder, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, presenter::Presenter};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,
@@ -57,6 +59,18 @@ impl Renderer {
                     )
                     .unwrap()
                     .bind_pipeline_graphics(pipeline.clone())
+                    .unwrap()
+                    .push_constants(
+                        pipeline.layout().clone(), 
+                        0, 
+                        view,
+                    )
+                    .unwrap()
+                    .push_constants(
+                        pipeline.layout().clone(), 
+                        size_of::<[[f32; 4]; 4]>() as u32, 
+                        proj,
+                    )
                     .unwrap();
 
                 for mesh in &self.meshes {
@@ -90,16 +104,19 @@ impl Renderer {
             })
             .collect();
 
-;        command_buffers
+            command_buffers
     }
 
     /* todo: on presenter.update have renderer update the command buffers and send it as an argument to presenter.update instead of getting the commandbuffers from renderer otseçf */
     pub fn update(&mut self, el: &mut EventLoop) {
-        // self.presenter.recreate_swapchain = true;
-        self.presenter.command_buffers = self.get_command_buffers(
+        self.presenter.recreate_swapchain = true;
+        let cmd_buffers = self.get_command_buffers(
             self.presenter.pipeline.graphics_pipeline.clone(), 
             self.presenter.framebuffers.clone(),
         );
+        if cmd_buffers.len() != 0 {
+            self.presenter.command_buffers = cmd_buffers;
+        } 
         self.presenter.update(self.vk.clone(), el);
     }
  }

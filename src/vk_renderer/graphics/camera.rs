@@ -1,11 +1,7 @@
 use glam::{vec3, Mat4, Vec2, Vec3, Vec4};
 use glfw::Key;
-use vulkano::buffer::BufferContents;
-use std::{ffi::CString, sync::Arc};
 
 use super::super::events::event_loop::EventLoop;
-
-use super::super::{buffer::VkBuffer, Vk};
 
 const UP: Vec3 = Vec3::Y;
 const SENSITIVITY: f32 = 0.1; // todo: make this editable
@@ -90,7 +86,7 @@ impl Camera {
         }
     }
 
-    pub fn update(&mut self, y: Vec3) {
+    pub fn update(&mut self, y: Vec3, el: &EventLoop) {
         self.pos = y;
         
         self.view = Mat4::look_at_rh(
@@ -99,8 +95,7 @@ impl Camera {
             self.up,
         );
         
-        // let (w, h) = el.window.get_framebuffer_size();
-        let (w, h) = (100, 100);
+        let (w, h) = el.window.get_framebuffer_size();
 
         match self.projection_type {
             ProjectionType::Orthographic => {

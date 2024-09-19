@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use chaos_vk::{buffer::{VkBuffer, VkIterBuffer}, command::{submit_cmd_buf, CommandBufferType, VkBuilder}, events::event_loop::EventLoop, geometry::fundamental::circle, graphics::mesh::Mesh, pipeline::VkComputePipeline, presenter::Presenter, renderer::Renderer, Vk};
-use glfw::Context;
-use vulkano::{buffer::BufferContents, command_buffer::{allocator::StandardCommandBufferAllocator, PrimaryAutoCommandBuffer}, descriptor_set::WriteDescriptorSet, pipeline::{ComputePipeline, Pipeline}};
+use chaos_vk::{buffer::VkBuffer, command::{submit_cmd_buf, CommandBufferType, VkBuilder}, events::event_loop::EventLoop, geometry::fundamental::circle, graphics::mesh::Mesh, pipeline::VkComputePipeline, presenter::Presenter, renderer::Renderer, Vk};
+use vulkano::{buffer::BufferContents, descriptor_set::WriteDescriptorSet, pipeline::Pipeline};
 
 
 mod phyisics_compute {
@@ -44,8 +43,6 @@ fn main() {
     let circle = circle(16, 1.0);
 
     renderer.meshes.push(Mesh::new(&circle.vertices, &circle.indices, &renderer));
-
-    let mut presenter = Presenter::new(renderer.vk.clone(), &el);
 
     let mut physics_pipeline = VkComputePipeline::new(
         renderer.vk.clone(), 

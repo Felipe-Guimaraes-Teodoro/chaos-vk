@@ -212,6 +212,7 @@ dependencies = [
  "glam",
  "glfw",
  "image",
+ "rayon",
  "vulkano",
  "vulkano-shaders",
  "winapi",

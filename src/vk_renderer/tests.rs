@@ -4,7 +4,7 @@ use crate::vk_renderer::pipeline::VkComputePipeline;
 use crate::vk_renderer::shaders::mandelbrot_shader;
 use std::sync::Arc;
 
-use glam::{vec3, Quat};
+use glam::vec3;
 use glfw::Context;
 use image::{ImageBuffer, Rgba};
 use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
@@ -19,7 +19,6 @@ use crate::vk_renderer::Vk;
 
 use super::events::event_loop::EventLoop;
 use super::geometry::fundamental::circle;
-use super::graphics::camera::ProjectionType;
 use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
 use super::renderer::Renderer;
@@ -195,7 +194,7 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
 }
 
 pub fn windowing() {
-    let mut el = EventLoop::new(1000, 1000);
+    let mut el = EventLoop::new(1200, 900);
 
     let mut renderer = Renderer::new(&mut el);
     renderer.presenter.window_resized = true;
@@ -248,15 +247,13 @@ pub fn windowing() {
     }
     
 
-    el.glfw.set_swap_interval(glfw::SwapInterval::Sync(0));
+    el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
     while !el.window.should_close() {
-        el.update(&mut renderer);
-
         renderer.camera.input(&el);
         renderer.camera.mouse_callback(el.event_handler.mouse_pos, &el.window);
-        renderer.camera.update(renderer.camera.pos);
-
+        renderer.camera.update(renderer.camera.pos, &el);
+        
         if el.is_key_down(glfw::Key::LeftAlt) {
             el.window.set_cursor_mode(glfw::CursorMode::Normal);
         } else {
@@ -264,8 +261,7 @@ pub fn windowing() {
         }
         
         renderer.update(&mut el);
-
-        el.window.swap_buffers();
+        el.update(&mut renderer);
     }
 }
 

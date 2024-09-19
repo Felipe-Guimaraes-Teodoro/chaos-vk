@@ -53,8 +53,6 @@ pub mod compute_pipeline {
 /// of pipelines involving both vertex and
 /// fragment shaders 
 pub mod graphics_pipeline {
-    use std::collections::{HashMap, HashSet};
-    use std::hash::RandomState;
     use std::sync::Arc;
 
     use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
@@ -66,14 +64,14 @@ pub mod graphics_pipeline {
     use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
     use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
     use vulkano::pipeline::graphics::multisample::MultisampleState;
-    use vulkano::pipeline::graphics::rasterization::{CullMode, PolygonMode, RasterizationState};
+    use vulkano::pipeline::graphics::rasterization::{CullMode, RasterizationState};
     use vulkano::pipeline::graphics::vertex_input::{Vertex as VulcanoVertex, VertexDefinition};
     use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
     use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
-    use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
+    use vulkano::pipeline::layout::{PipelineDescriptorSetLayoutCreateInfo, PushConstantRange};
     use vulkano::pipeline::{DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
     use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
-    use vulkano::shader::ShaderModule;
+    use vulkano::shader::{ShaderModule, ShaderStages};
     use vulkano::swapchain::Swapchain;
 
     use crate::vk_renderer::vertex::Vertex;
@@ -185,9 +183,11 @@ pub mod graphics_pipeline {
             PipelineShaderStageCreateInfo::new(fs_entry),
         ];
 
+        let dc_layout = PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages);
+
         let layout = PipelineLayout::new(
             vk.device.clone(), 
-            PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+            dc_layout
                 .into_pipeline_layout_create_info(vk.device.clone())
                 .unwrap(),
         )
@@ -227,10 +227,6 @@ pub mod graphics_pipeline {
             },
         )
         .unwrap();
-
-        let state = pipeline.dynamic_state();
-
-        dbg!(state.get(&DynamicState::CullMode));
 
         pipeline
     }
@@ -272,14 +268,17 @@ pub mod vertex_shader {
 
             layout(set = 0, binding = 1) uniform UniformBuffer {
                 mat4 model;
-                mat4 view;
-                mat4 proj;
             } ubo;
 
-             layout(location = 1) out vec3 out_col;
+            layout(push_constant) uniform PushConstants {
+                mat4 view;
+                mat4 proj;
+            } pc;
+
+            layout(location = 1) out vec3 out_col;
 
             void main() {
-                gl_Position = ubo.proj * ubo.view * ubo.model * vec4(pos, 1.0);
+                gl_Position = pc.proj * pc.view * ubo.model * vec4(pos, 1.0);
 
                 out_col = col;
             }

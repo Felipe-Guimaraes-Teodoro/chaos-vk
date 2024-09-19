@@ -61,7 +61,6 @@ impl EventLoop {
 
 
         self.window.swap_buffers();
-    
         self.glfw.poll_events();
 
         self.event_handler.update();

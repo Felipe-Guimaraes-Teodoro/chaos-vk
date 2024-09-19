@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, CommandBufferExecFuture, PrimaryAutoCommandBuffer}, image::Image, render_pass::Framebuffer, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{future::{FenceSignalFuture, JoinFuture}, now, GpuFuture}, Validated, VulkanError};
 
-use super::{events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, renderer::Renderer, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, Vk};
+use super::{events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, Vk};
 
 
 type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFuture<Box<dyn GpuFuture>, SwapchainAcquireFuture>>>>>;
@@ -60,7 +60,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         if self.window_resized || self.recreate_swapchain {
             self.recreate_swapchain = false;
 
-            let (new_w, new_h) = el.window.get_size();
+            let (new_w, new_h) = (el.event_handler.width, el.event_handler.height);
 
             let (new_swapchain, new_images) = self.swapchain
                 .recreate(SwapchainCreateInfo {
@@ -69,7 +69,8 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                 })
                 .expect("failed to recreate swapchain");
 
-            self.swapchain = new_swapchain;
+            self.pipeline.viewport.extent = [new_w, new_h];
+
             self.framebuffers = framebuffers(
                 vk.clone(),
                 self.pipeline.render_pass.clone(),
@@ -78,8 +79,8 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
 
             if self.window_resized {
                 self.window_resized = false;
-
-                self.pipeline.viewport.extent = [new_w as f32, new_h as f32];
+                
+                self.pipeline.viewport.extent = [new_w, new_h];
                 self.pipeline.graphics_pipeline = crate::vk_renderer::shaders::graphics_pipeline::graphics_pipeline(
                     vk.clone(),
                     self.pipeline.vs.clone(),
@@ -87,8 +88,9 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                     self.pipeline.render_pass.clone(),
                     self.pipeline.viewport.clone(),
                 );
-
             }
+
+            self.swapchain = new_swapchain;
         }
 
         let (image_i, suboptimal, acquire_future) =

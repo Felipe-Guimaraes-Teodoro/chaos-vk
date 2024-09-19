@@ -25,7 +25,7 @@ impl VkGraphicsPipeline {
     ) -> Self {
         let viewport = Viewport {
             offset: [0.0, 0.0],
-            extent: [1024.0, 1024.0],
+            extent: [1.0, 1.0],
             depth_range: 0.0..=1.0,
         };
 
