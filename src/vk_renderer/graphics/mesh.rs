@@ -3,7 +3,7 @@ use std::sync::Arc;
 use glam::{Mat4, Quat, Vec3};
 use vulkano::{buffer::BufferContents, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}};
 
-use super::super::{shaders::graphics_pipeline, buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex};
+use super::super::{shaders::graphics_pipeline, buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex, vk::Vk};
 
 type Mat = [[f32;4];4];
 
@@ -54,6 +54,11 @@ impl Mesh {
         }
     }
 
+    pub fn rebuild(&mut self, vk: Arc<Vk>) {
+        self.vbo = VkIterBuffer::vertex(vk.allocators.clone(), self.vertices.to_vec());
+        self.ebo = VkIterBuffer::index(vk.allocators.clone(), self.indices.to_vec());
+    }
+
     pub fn get_model(&self) -> [[f32; 4]; 4] {
         let model_matrix = 
             Mat4::from_translation(self.position) *
@@ -72,7 +77,7 @@ impl Mesh {
         graphics_pipeline::descriptor_set(
             renderer.vk.clone(), 
             0,
-            renderer.presenter.pipeline.graphics_pipeline.clone(), 
+            renderer.presenter.pipelines[0].graphics_pipeline.clone(), 
             [WriteDescriptorSet::buffer(1, ubo._content)]
         )
     }

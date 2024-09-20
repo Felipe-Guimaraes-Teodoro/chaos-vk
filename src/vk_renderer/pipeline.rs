@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, ComputePipeline, GraphicsPipeline, Pipeline}, render_pass::RenderPass, shader::ShaderModule, swapchain::Swapchain};
+use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::RenderPass, shader::ShaderModule, swapchain::Swapchain};
 
 use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_pipeline, graphics_pipeline}, Vk};
 
+#[derive(Clone)]
 pub struct VkGraphicsPipeline {
     pub _vk: Arc<Vk>,
     pub graphics_pipeline: Arc<GraphicsPipeline>,
@@ -12,7 +13,9 @@ pub struct VkGraphicsPipeline {
     // pub descriptor_set_layout_index: Option<usize>,
     pub vs: Arc<ShaderModule>,
     pub fs: Arc<ShaderModule>,
-    
+
+    pub pipeline_layout: Arc<dyn Fn() -> Arc<PipelineLayout>>,
+
     pub viewport: Viewport,
 }
 
@@ -21,6 +24,7 @@ impl VkGraphicsPipeline {
         vk: Arc<Vk>,
         vs: Arc<vulkano::shader::ShaderModule>,
         fs: Arc<vulkano::shader::ShaderModule>,
+        custom_layout: Arc<dyn Fn() -> Arc<PipelineLayout>>,
         swapchain: Option<Arc<Swapchain>>,
     ) -> Self {
         let viewport = Viewport {
@@ -38,6 +42,7 @@ impl VkGraphicsPipeline {
             vk.clone(),
             vs.clone(),
             fs.clone(),
+            custom_layout.as_ref(),
             render_pass.clone(),
             viewport.clone(),
         );
@@ -47,9 +52,37 @@ impl VkGraphicsPipeline {
             graphics_pipeline,
             render_pass,
             viewport,
+            pipeline_layout: custom_layout,
             vs,
             fs,
         }
+    }
+
+    pub fn default_layout(
+        vk: Arc<Vk>,
+        vs: Arc<ShaderModule>,
+        fs: Arc<ShaderModule>,
+
+    ) -> Arc<dyn Fn() -> Arc<PipelineLayout>> {
+        let vs_entry = vs.entry_point("main").unwrap();
+        let fs_entry = fs.entry_point("main").unwrap();
+
+        let stages = [
+            PipelineShaderStageCreateInfo::new(vs_entry),
+            PipelineShaderStageCreateInfo::new(fs_entry),
+        ];
+        
+        let dc_layout = PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages);
+        
+        Arc::new(move || {
+            PipelineLayout::new(
+                vk.device.clone(), 
+                dc_layout.clone()
+                    .into_pipeline_layout_create_info(vk.device.clone())
+                    .unwrap(),
+            )
+            .unwrap()
+        })
     }
 
     pub fn set_descriptor_set_writes(

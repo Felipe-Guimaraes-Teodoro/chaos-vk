@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
-use glam::Mat4;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::{GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
 
 use crate::vk_renderer::Vk;
 
-use super::{command::VkBuilder, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, presenter::Presenter};
+use super::{command::VkBuilder, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,
@@ -36,7 +34,7 @@ impl Renderer {
 
     pub fn get_command_buffers(
         &self,
-        pipeline: Arc<GraphicsPipeline>,
+        pipelines: Vec<VkGraphicsPipeline>,
         framebuffers: Vec<Arc<Framebuffer>>,
     ) -> Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> {
         let (view, proj) = (self.camera.get_view(), self.camera.get_proj());
@@ -58,16 +56,16 @@ impl Renderer {
                         },
                     )
                     .unwrap()
-                    .bind_pipeline_graphics(pipeline.clone())
+                    .bind_pipeline_graphics(pipelines[0].graphics_pipeline.clone())
                     .unwrap()
                     .push_constants(
-                        pipeline.layout().clone(), 
+                        pipelines[0].graphics_pipeline.layout().clone(), 
                         0, 
                         view,
                     )
                     .unwrap()
                     .push_constants(
-                        pipeline.layout().clone(), 
+                        pipelines[0].graphics_pipeline.layout().clone(), 
                         size_of::<[[f32; 4]; 4]>() as u32, 
                         proj,
                     )
@@ -77,7 +75,7 @@ impl Renderer {
                     builder.0
                         .bind_descriptor_sets(
                             vulkano::pipeline::PipelineBindPoint::Graphics, 
-                            pipeline.layout().clone(), 
+                            pipelines[0].graphics_pipeline.layout().clone(), 
                             0, 
                             mesh.get_desc_set(&self).0
                         )
@@ -109,14 +107,12 @@ impl Renderer {
 
     /* todo: on presenter.update have renderer update the command buffers and send it as an argument to presenter.update instead of getting the commandbuffers from renderer otseçf */
     pub fn update(&mut self, el: &mut EventLoop) {
-        self.presenter.recreate_swapchain = true;
+        // self.presenter.recreate_swapchain = true;
         let cmd_buffers = self.get_command_buffers(
-            self.presenter.pipeline.graphics_pipeline.clone(), 
+            self.presenter.pipelines.clone(), 
             self.presenter.framebuffers.clone(),
         );
-        if cmd_buffers.len() != 0 {
-            self.presenter.command_buffers = cmd_buffers;
-        } 
+        self.presenter.command_buffers = cmd_buffers;
         self.presenter.update(self.vk.clone(), el);
     }
  }

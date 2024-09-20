@@ -5,7 +5,6 @@ use crate::vk_renderer::shaders::mandelbrot_shader;
 use std::sync::Arc;
 
 use glam::vec3;
-use glfw::Context;
 use image::{ImageBuffer, Rgba};
 use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
 use vulkano::descriptor_set::WriteDescriptorSet;
@@ -133,17 +132,21 @@ pub fn rendering_pipeline(vk: Arc<Vk>) {
     );
 
     let vertices = vec![
-        Vertex::from_vec(vec3(0.0, 0.0, 0.0)),
-        Vertex::from_vec(vec3(1.0, 0.0, 0.0)),
-        Vertex::from_vec(vec3(1.0, 1.0, 0.0)),
+        Vertex::new(vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0)),
+        Vertex::new(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0)),
+        Vertex::new(vec3(1.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0)),
     ];
 
     let vertex_buffer = VkIterBuffer::vertex(vk.allocators.clone(), vertices);
 
+    let vs = vertex_shader::load(vk.device.clone()).unwrap();
+    let fs = fragment_shader::load(vk.device.clone()).unwrap();
+
     let pipeline = VkGraphicsPipeline::new(
         vk.clone(), 
-        vertex_shader::load(vk.device.clone()).unwrap(), 
-        fragment_shader::load(vk.device.clone()).unwrap(),
+        vs.clone(),
+        fs.clone(),
+        VkGraphicsPipeline::default_layout(vk.clone(), vs.clone(), fs.clone()),
         None,
     );
 
@@ -224,7 +227,7 @@ pub fn windowing() {
                 col[1] = ((i % (w * d)) / w) as f32 / d as f32;
                 col[2] = (i % w) as f32 / w as f32;
             
-                let n_v = Vertex { pos, col };
+                let n_v = Vertex { pos, col, norm: [0.0, 0.0, 1.0] };
             
                 vertices_i.push(n_v);
             }
@@ -250,6 +253,7 @@ pub fn windowing() {
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
     while !el.window.should_close() {
+        el.update(&mut renderer);
         renderer.camera.input(&el);
         renderer.camera.mouse_callback(el.event_handler.mouse_pos, &el.window);
         renderer.camera.update(renderer.camera.pos, &el);
@@ -261,7 +265,6 @@ pub fn windowing() {
         }
         
         renderer.update(&mut el);
-        el.update(&mut renderer);
     }
 }
 

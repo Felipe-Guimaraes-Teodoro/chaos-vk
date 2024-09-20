@@ -59,8 +59,8 @@ impl Camera {
         let view = Mat4::look_at_rh(pos, pos + front, up);
 
         Self {
-            proj: Mat4::perspective_rh_gl
-            (70.0f32.to_radians(), 1.0, 0.1, 100000.0),
+            proj: Mat4::perspective_lh
+            (70.0f32.to_radians(), 1.0, 0.1, 1000.0),
             view,
 
             pos,
@@ -92,7 +92,7 @@ impl Camera {
         self.view = Mat4::look_at_rh(
             self.pos,
             self.pos + self.front,
-            self.up,
+            -self.up,
         );
         
         let (w, h) = el.window.get_framebuffer_size();
@@ -105,7 +105,7 @@ impl Camera {
             }
 
             ProjectionType::Perspective => {
-                self.proj = Mat4::perspective_rh
+                self.proj = Mat4::perspective_lh
                 (70.0f32.to_radians(), w as f32 / h as f32, 0.1, 1000.0);
             }
 
@@ -146,22 +146,22 @@ impl Camera {
         }
 
         if el.is_key_down(Key::W) {
-            self.pos += speed * self.dt * self.front; 
-        }
-        if el.is_key_down(Key::S) {
             self.pos -= speed * self.dt * self.front; 
         }
-        if el.is_key_down(Key::Space) {
-            self.pos -= speed * self.dt * self.up;
+        if el.is_key_down(Key::S) {
+            self.pos += speed * self.dt * self.front; 
         }
-        if el.is_key_down(Key::LeftControl) {
+        if el.is_key_down(Key::Space) {
             self.pos += speed * self.dt * self.up;
         }
+        if el.is_key_down(Key::LeftControl) {
+            self.pos -= speed * self.dt * self.up;
+        }
         if el.is_key_down(Key::A) {
-            self.pos -= speed * self.dt * self.front.cross(self.up).normalize(); 
+            self.pos += speed * self.dt * self.front.cross(self.up).normalize(); 
         }
         if el.is_key_down(Key::D) {
-            self.pos += speed * self.dt * self.front.cross(self.up).normalize(); 
+            self.pos -= speed * self.dt * self.front.cross(self.up).normalize(); 
         }
     }
 

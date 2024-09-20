@@ -8,13 +8,16 @@ pub struct Vertex {
     pub pos: [f32; 3],
     #[format(R32G32B32_SFLOAT)]
     pub col: [f32; 3],
+    #[format(R32G32B32_SFLOAT)]
+    pub norm: [f32; 3],
 }
 
 impl Vertex {
-    pub fn from_vec(vec: Vec3) -> Self {
+    pub fn new(vec: Vec3, norm: Vec3) -> Self {
         Self {
             pos: [vec.x, vec.y, vec.z],
             col: [1.0, 1.0, 1.0],
+            norm: [norm.x, norm.y, norm.z]
         }
     }
 }

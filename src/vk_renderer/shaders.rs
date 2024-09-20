@@ -49,6 +49,10 @@ pub mod compute_pipeline {
     }
 }
 
+/*
+TODO: customizable pipeline layout creation
+*/
+
 /// A set of utility functions for the creation 
 /// of pipelines involving both vertex and
 /// fragment shaders 
@@ -58,7 +62,7 @@ pub mod graphics_pipeline {
     use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
     use vulkano::format::Format;
     use vulkano::image::view::ImageView;
-    use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
+    use vulkano::image::{Image, ImageCreateInfo, ImageUsage, SampleCount};
     use vulkano::memory::allocator::AllocationCreateInfo;
     use vulkano::pipeline::graphics::color_blend::{ColorBlendAttachmentState, ColorBlendState};
     use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
@@ -68,10 +72,10 @@ pub mod graphics_pipeline {
     use vulkano::pipeline::graphics::vertex_input::{Vertex as VulcanoVertex, VertexDefinition};
     use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
     use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
-    use vulkano::pipeline::layout::{PipelineDescriptorSetLayoutCreateInfo, PushConstantRange};
-    use vulkano::pipeline::{DynamicState, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
+    use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
+    use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
     use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
-    use vulkano::shader::{ShaderModule, ShaderStages};
+    use vulkano::shader::ShaderModule;
     use vulkano::swapchain::Swapchain;
 
     use crate::vk_renderer::vertex::Vertex;
@@ -168,6 +172,7 @@ pub mod graphics_pipeline {
         vk: Arc<Vk>,
         vs: Arc<ShaderModule>,
         fs: Arc<ShaderModule>,
+        layout: &dyn Fn() -> Arc<PipelineLayout>,
         rp: Arc<RenderPass>,
         vp: Viewport
     ) -> Arc<GraphicsPipeline> {
@@ -183,20 +188,12 @@ pub mod graphics_pipeline {
             PipelineShaderStageCreateInfo::new(fs_entry),
         ];
 
-        let dc_layout = PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages);
-
-        let layout = PipelineLayout::new(
-            vk.device.clone(), 
-            dc_layout
-                .into_pipeline_layout_create_info(vk.device.clone())
-                .unwrap(),
-        )
-        .unwrap();
+        let layout = layout();
 
         let subpass = Subpass::from(rp.clone(), 0).unwrap();
 
         let pipeline = GraphicsPipeline::new(
-            vk.device.clone(), 
+            vk.device.clone(),
             None, 
             GraphicsPipelineCreateInfo {
                 stages: stages.into_iter().collect(),
@@ -214,7 +211,10 @@ pub mod graphics_pipeline {
                     cull_mode: CullMode::None,
                     ..Default::default()
                 }),
-                multisample_state: Some(MultisampleState::default()),
+                multisample_state: Some(MultisampleState {
+                    rasterization_samples: vulkano::image::SampleCount::Sample1,
+                    ..Default::default()
+                }),
                 color_blend_state: Some(ColorBlendState::with_attachment_states(
                     subpass.num_color_attachments(),
                     ColorBlendAttachmentState::default(),
@@ -265,6 +265,7 @@ pub mod vertex_shader {
 
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 col;
+            layout(location = 2) in vec3 norm;
 
             layout(set = 0, binding = 1) uniform UniformBuffer {
                 mat4 model;
@@ -276,11 +277,13 @@ pub mod vertex_shader {
             } pc;
 
             layout(location = 1) out vec3 out_col;
+            layout(location = 2) out vec3 out_norm;
 
             void main() {
                 gl_Position = pc.proj * pc.view * ubo.model * vec4(pos, 1.0);
 
                 out_col = col;
+                out_norm = (pc.view * vec4(norm, 0.0)).xyz;
             }
         ",
     }
@@ -292,13 +295,27 @@ pub mod fragment_shader {
         src: r"
             #version 460
 
-            layout(location = 1) in vec3 out_col;
+            layout(location = 1) in vec3 in_col;
+            layout(location = 2) in vec3 in_norm;
 
             layout(location = 0) out vec4 f_color;
 
+            layout(push_constant) uniform PushConstants {
+                mat4 view;
+                mat4 proj;
+            } pc;
 
             void main() {
-                f_color = vec4(out_col, 1.0);
+                vec3 viewDir = vec3(0.0, 0.0, -1.0); 
+                vec3 normalizedNormal = normalize(in_norm);
+                
+                float intensity = max(dot(normalizedNormal, viewDir), 0.0);
+                vec3 diffuse = intensity * in_col;
+
+                vec3 ambientColor = vec3(0.1, 0.2, 0.3);
+                vec3 ambient = ambientColor * in_col;
+
+                f_color = vec4(diffuse + ambient, 1.0);
             }
         ",
     }
