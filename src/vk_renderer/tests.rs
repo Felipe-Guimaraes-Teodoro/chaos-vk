@@ -17,7 +17,7 @@ use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use crate::vk_renderer::Vk;
 
 use super::events::event_loop::EventLoop;
-use super::geometry::fundamental::circle;
+use super::geometry::fundamental::sphere;
 use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
 use super::renderer::Renderer;
@@ -109,7 +109,6 @@ pub fn mandelbrot_image(vk: Arc<Vk>) {
 }
 
 pub fn rendering_pipeline(vk: Arc<Vk>) {
-    dbg!(1024);
     let image = Image::new(
         vk.allocators.memory.clone(),
         ImageCreateInfo {
@@ -202,45 +201,43 @@ pub fn windowing() {
     let mut renderer = Renderer::new(&mut el);
     renderer.presenter.window_resized = true;
 
-    let circle = circle(16, 1.0);
+    let sphere = sphere(5, 1.0);
+
+    let mut vertices = vec![];
+    let mut indices = vec![];
+    let mut normals = vec![];
+    
+    let w = 40;
+    let d = 40;
 
     {
-        let mut vertices = vec![];
-    
-        let mut indices = vec![];
-    
-        for i in 0..125000 {
-            let mut vertices_i = Vec::new();
-
-            for v in &circle.vertices {
+        for i in 0..64000 {
+            let mut vertices_i = vec![];
+        
+            for v in &sphere.vertices {
                 let mut pos = v.pos;
                 let mut col = v.col;
-
-                let w = 50;
-                let d = 50;
-
+                let norm = v.norm;
+        
                 pos[0] += (i / (w * d)) as f32;
                 pos[1] += ((i % (w * d)) / w) as f32;
                 pos[2] += (i % w) as f32;
-
+        
                 col[0] = (i / (w * d)) as f32 / w as f32;
                 col[1] = ((i % (w * d)) / w) as f32 / d as f32;
                 col[2] = (i % w) as f32 / w as f32;
-            
-                let n_v = Vertex { pos, col, norm: [0.0, 0.0, 1.0] };
-            
-                vertices_i.push(n_v);
+        
+                vertices_i.push(Vertex { pos, col, norm });
+                normals.push(norm);
             }
-
-            let indices_i = circle.indices.iter().map(|&idx| {
-                idx + indices.len() as u32
-            }).collect::<Vec<u32>>();
-
+        
+            let start_index = indices.len() as u32;
+            let indices_i: Vec<u32> = sphere.indices.iter().map(|&idx| idx + start_index).collect();
+        
             vertices.extend(vertices_i);
-
             indices.extend(indices_i);
         }
-    
+
         let mesh = Mesh::new(&vertices, &indices, &renderer);
         
         
@@ -264,31 +261,12 @@ pub fn windowing() {
             el.window.set_cursor_mode(glfw::CursorMode::Disabled);
         }
         
+        let now = std::time::Instant::now();
         renderer.update(&mut el);
+        let elapsed = now.elapsed().as_secs_f32() * 1000.0;
+
+        if cfg!(debug_assertions) {
+            dbg!(elapsed);
+        }
     }
 }
-
-/* 
-el.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } => {
-            *control_flow = ControlFlow::Exit;
-        }
-        Event::WindowEvent {
-            event: WindowEvent::Resized(_),
-            ..
-        } => {
-            presenter.window_resized = true;
-        }
-        Event::MainEventsCleared => {
-            // renderer.update(get_circle(renderer.vk.allocators.clone(), t as usize));
-            presenter.update(&renderer, renderer.vk.clone());
-            presenter.recreate_swapchain = true;
-
-            t+=0.01;
-        }
-        _ => (),
-    });
-*/

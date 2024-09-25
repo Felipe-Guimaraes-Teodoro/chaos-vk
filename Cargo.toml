@@ -8,6 +8,7 @@ bytemuck = "1.16.3"
 glam = "0.29.0"
 glfw = { version = "0.56.0", features = ["vulkan"] }
 image = "0.25.2"
+imgui = "0.12.0"
 rayon = "1.10.0"
 vulkano = "0.34.0"
 vulkano-shaders = "0.34.0"

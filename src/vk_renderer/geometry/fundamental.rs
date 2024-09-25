@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use glam::vec3;
 
 use crate::vk_renderer::vertex::Vertex;
@@ -50,8 +52,8 @@ pub fn sphere(iterations: usize, radius: f32) -> GeometryData {
             let z = sin_phi * sin_theta * radius;
 
             /* DONT DELETE: for use later in vertex UV coords */
-            let s = lon as f32 / iterations as f32;
-            let t = 1.0 - (lat as f32 / iterations as f32);
+            let _s = lon as f32 / iterations as f32;
+            let _t = 1.0 - (lat as f32 / iterations as f32);
 
             let normal = vec3(x, y, z).normalize();
 

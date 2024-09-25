@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::{GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
+use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::Pipeline, render_pass::Framebuffer};
 
 use crate::vk_renderer::Vk;
 
@@ -37,8 +37,6 @@ impl Renderer {
         pipelines: Vec<VkGraphicsPipeline>,
         framebuffers: Vec<Arc<Framebuffer>>,
     ) -> Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> {
-        let (view, proj) = (self.camera.get_view(), self.camera.get_proj());
-
         let command_buffers: Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> = framebuffers
             .iter()
             .map(|framebuffer| {
@@ -57,19 +55,19 @@ impl Renderer {
                     )
                     .unwrap()
                     .bind_pipeline_graphics(pipelines[0].graphics_pipeline.clone())
-                    .unwrap()
-                    .push_constants(
-                        pipelines[0].graphics_pipeline.layout().clone(), 
-                        0, 
-                        view,
-                    )
-                    .unwrap()
-                    .push_constants(
-                        pipelines[0].graphics_pipeline.layout().clone(), 
-                        size_of::<[[f32; 4]; 4]>() as u32, 
-                        proj,
-                    )
                     .unwrap();
+                    //.push_constants(
+                    //    pipelines[0].graphics_pipeline.layout().clone(), 
+                    //    0, 
+                    //    view,
+                    //)
+                    //.unwrap()
+                    //.push_constants(
+                    //    pipelines[0].graphics_pipeline.layout().clone(), 
+                    //    size_of::<[[f32; 4]; 4]>() as u32, 
+                    //    proj,
+                    //)
+                    //.unwrap();
 
                 for mesh in &self.meshes {
                     builder.0

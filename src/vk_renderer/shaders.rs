@@ -62,7 +62,7 @@ pub mod graphics_pipeline {
     use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
     use vulkano::format::Format;
     use vulkano::image::view::ImageView;
-    use vulkano::image::{Image, ImageCreateInfo, ImageUsage, SampleCount};
+    use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
     use vulkano::memory::allocator::AllocationCreateInfo;
     use vulkano::pipeline::graphics::color_blend::{ColorBlendAttachmentState, ColorBlendState};
     use vulkano::pipeline::graphics::depth_stencil::DepthStencilState;
@@ -72,7 +72,6 @@ pub mod graphics_pipeline {
     use vulkano::pipeline::graphics::vertex_input::{Vertex as VulcanoVertex, VertexDefinition};
     use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
     use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
-    use vulkano::pipeline::layout::PipelineDescriptorSetLayoutCreateInfo;
     use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo};
     use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass};
     use vulkano::shader::ShaderModule;
@@ -269,21 +268,18 @@ pub mod vertex_shader {
 
             layout(set = 0, binding = 1) uniform UniformBuffer {
                 mat4 model;
-            } ubo;
-
-            layout(push_constant) uniform PushConstants {
                 mat4 view;
                 mat4 proj;
-            } pc;
-
+            } ubo;
+            
             layout(location = 1) out vec3 out_col;
             layout(location = 2) out vec3 out_norm;
 
             void main() {
-                gl_Position = pc.proj * pc.view * ubo.model * vec4(pos, 1.0);
+                gl_Position = ubo.proj * ubo.view * ubo.model * vec4(pos, 1.0);
 
                 out_col = col;
-                out_norm = (pc.view * vec4(norm, 0.0)).xyz;
+                out_norm = (ubo.view * vec4(norm, 0.0)).xyz;
             }
         ",
     }
@@ -300,10 +296,11 @@ pub mod fragment_shader {
 
             layout(location = 0) out vec4 f_color;
 
-            layout(push_constant) uniform PushConstants {
+            layout(set = 0, binding = 1) uniform UniformBuffer {
+                mat4 model;
                 mat4 view;
                 mat4 proj;
-            } pc;
+            } ubo;
 
             void main() {
                 vec3 viewDir = vec3(0.0, 0.0, -1.0); 

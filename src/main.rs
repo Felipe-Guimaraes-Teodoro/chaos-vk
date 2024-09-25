@@ -5,5 +5,11 @@ pub use vk_renderer::tests::*;
 fn main() {
     println!("Hello, world!");
 
-    test();
+    std::thread::spawn(|| {
+        test();
+    });
+
+    loop {
+        
+    }
 }

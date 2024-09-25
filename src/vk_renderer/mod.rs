@@ -11,5 +11,6 @@ pub mod presenter;
 pub mod graphics;
 pub mod ecs;
 pub mod events;
+pub mod ui;
 
 pub use vk::*;

@@ -11,13 +11,17 @@ type Mat = [[f32;4];4];
 #[repr(C)]
 pub struct UniformBuffer {
     // #[format(R32G32_SFLOAT)]
-    pub model:Mat,
+    pub model: Mat,
+    pub view: Mat,
+    pub proj: Mat,
 }
 
 impl UniformBuffer {
-    pub fn create(renderer: &Renderer, model: Mat) -> VkBuffer<UniformBuffer> {
+    pub fn create(renderer: &Renderer, model: Mat, view: Mat, proj: Mat) -> VkBuffer<UniformBuffer> {
         let data = UniformBuffer {
             model,
+            view,
+            proj,
         };
         
         VkBuffer::uniform(renderer.vk.allocators.clone(), data)
@@ -72,6 +76,8 @@ impl Mesh {
         let ubo = UniformBuffer::create(
             renderer, 
             self.get_model(),
+            renderer.camera.get_view(),
+            renderer.camera.get_proj()
         );
 
         graphics_pipeline::descriptor_set(

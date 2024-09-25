@@ -1,6 +1,6 @@
-use std::{char::MAX, sync::Arc};
+use std::sync::Arc;
 
-use chaos_vk::{buffer::VkBuffer, command::{submit_cmd_buf, CommandBufferType, VkBuilder}, events::event_loop::EventLoop, geometry::fundamental::{circle, sphere, GeometryData}, graphics::mesh::Mesh, pipeline::VkComputePipeline, presenter::Presenter, renderer::Renderer, vertex::Vertex, Vk};
+use chaos_vk::{buffer::VkBuffer, command::{submit_cmd_buf, CommandBufferType, VkBuilder}, events::event_loop::EventLoop, geometry::fundamental::sphere, graphics::mesh::Mesh, pipeline::VkComputePipeline, renderer::Renderer, Vk};
 use glam::vec3;
 use vulkano::{buffer::BufferContents, descriptor_set::WriteDescriptorSet, pipeline::Pipeline};
 
@@ -73,7 +73,7 @@ fn main() {
         [WriteDescriptorSet::buffer(0, buffer._content.clone())]
     );
 
-    let mut positions = vec![];
+    let mut positions;
     
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
