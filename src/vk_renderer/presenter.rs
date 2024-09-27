@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, CommandBufferExecFuture, PrimaryAutoCommandBuffer}, image::Image, render_pass::Framebuffer, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{self, future::{FenceSignalFuture, JoinFuture}, GpuFuture}, Validated, VulkanError};
 
-use super::{events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, Vk};
+use super::{command::{BuilderType, CommandBufferType}, events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, Vk};
 
 type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFuture<Box<dyn GpuFuture>, SwapchainAcquireFuture>>>>>;
 
@@ -11,7 +11,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
     pub images: Vec<Arc<Image>>,
     pub pipelines: Vec<VkGraphicsPipeline>,
     pub framebuffers: Vec<Arc<Framebuffer>>,
-    pub command_buffers: Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>>,
+    pub cmd_bufs: Vec<CommandBufferType>,
 
     pub recreate_swapchain: bool,
     pub window_resized: bool,
@@ -50,7 +50,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
             images,
             pipelines,
             framebuffers,        
-            command_buffers: vec![],
+            cmd_bufs: vec![],
 
             recreate_swapchain: false,
             window_resized: false,
@@ -59,7 +59,11 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         }
     }
 
-    pub fn update(&mut self, vk: Arc<Vk>, el: &EventLoop) {
+    pub fn update(
+        &mut self, 
+        vk: Arc<Vk>, 
+        el: &EventLoop,
+    ) {
         if self.window_resized || self.recreate_swapchain {
             self.recreate_swapchain = false;
 
@@ -97,9 +101,8 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                     );
                 }
             }
-
         }
-
+        
         let (image_i, suboptimal, acquire_future) =
             match swapchain::acquire_next_image(self.swapchain.clone(), None)
                 .map_err(Validated::unwrap)
@@ -131,7 +134,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
 
         let future = previous_future
             .join(acquire_future)
-            .then_execute(vk.queue.clone(), self.command_buffers[image_i as usize].clone())
+            .then_execute(vk.queue.clone(), self.cmd_bufs[image_i as usize].clone())
             .unwrap()
             .then_swapchain_present(
                 vk.queue.clone(),

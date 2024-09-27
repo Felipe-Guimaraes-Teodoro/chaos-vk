@@ -19,13 +19,29 @@ mod phyisics_compute {
             } points;
 
             const float deltaTime = 0.1;
-            const float radius = 0.5;
+            const float radius = 1.5;
 
             void main() {
                 uint idx = gl_GlobalInvocationID.x;
 
                 if (idx >= points.positions.length()) {
                     return;
+                }
+
+                for (int i = 0; i < 64; ++i) {
+                    if (i == idx) {
+                        continue;
+                    }
+
+                    vec3 pos = points.positions[idx].xyz;
+                    vec3 other_pos = points.positions[i].xyz;
+                    float distance = distance(pos, other_pos);
+
+                    if (distance < radius) {
+                        vec3 midpoint = mix(pos, other_pos, 0.5);
+                        points.positions[idx].xyz -= midpoint / distance;
+                        points.velocities[idx].xyz = -midpoint / distance;
+                    }
                 }
 
                 points.positions[idx] += points.velocities[idx] * deltaTime;
@@ -39,7 +55,6 @@ mod phyisics_compute {
 
                 points.velocities[idx] += vec4(0.0, -0.098, 0.0, 0.0) * deltaTime;
             }
-
         ",
     }
 }

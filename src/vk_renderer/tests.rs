@@ -22,6 +22,7 @@ use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
 use super::renderer::Renderer;
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
+use super::ui::renderer::ImRenderer;
 use super::vertex::Vertex;
 
 pub fn test() {
@@ -199,6 +200,7 @@ pub fn windowing() {
     let mut el = EventLoop::new(1200, 900);
 
     let mut renderer = Renderer::new(&mut el);
+    
     renderer.presenter.window_resized = true;
 
     let sphere = sphere(5, 1.0);
@@ -245,7 +247,6 @@ pub fn windowing() {
             mesh
         );
     }
-    
 
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 

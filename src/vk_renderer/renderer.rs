@@ -1,27 +1,27 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::Pipeline, render_pass::Framebuffer};
+use imgui::{Context, DrawData};
+use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::Pipeline, render_pass::Framebuffer};
 
 use crate::vk_renderer::Vk;
 
-use super::{command::VkBuilder, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter};
+use super::{command::{BuilderType, CommandBufferType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter, ui::renderer::ImRenderer};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,
-
     pub presenter: Presenter,
-
     pub camera: Camera,
-    
     pub meshes: Vec<Mesh>,
+
+    pub cmd_buf_callbacks: Vec<Box<dyn Fn(&mut BuilderType) + Send + Sync>>,
 } 
 
 impl Renderer {
     pub fn new(el: &mut EventLoop) -> Self {
         let vk = Arc::new(Vk::new(el));
-
+        
         let camera = Camera::new();
-
+        
         let presenter = Presenter::new(vk.clone(), el);
 
         Self {
@@ -29,15 +29,16 @@ impl Renderer {
             presenter,
             camera,
             meshes: vec![],
+            cmd_buf_callbacks: vec![],
         }
     }
 
     pub fn get_command_buffers(
-        &self,
+        &mut self,
         pipelines: Vec<VkGraphicsPipeline>,
         framebuffers: Vec<Arc<Framebuffer>>,
-    ) -> Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> {
-        let command_buffers: Vec<Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>> = framebuffers
+    ) -> Vec<CommandBufferType> {
+        framebuffers
             .iter()
             .map(|framebuffer| {
                 let mut builder = VkBuilder::new_multiple(self.vk.clone());
@@ -96,21 +97,22 @@ impl Renderer {
                     .end_render_pass(Default::default())
                     .unwrap();
 
+                for callback in &self.cmd_buf_callbacks {
+                    callback(&mut builder.0);
+                }
+
                 builder.0.build().unwrap()
             })
-            .collect();
-
-            command_buffers
+            .collect()
     }
 
-    /* todo: on presenter.update have renderer update the command buffers and send it as an argument to presenter.update instead of getting the commandbuffers from renderer otseçf */
     pub fn update(&mut self, el: &mut EventLoop) {
         // self.presenter.recreate_swapchain = true;
-        let cmd_buffers = self.get_command_buffers(
+        let cmd_buffer_builders = self.get_command_buffers(
             self.presenter.pipelines.clone(), 
             self.presenter.framebuffers.clone(),
         );
-        self.presenter.command_buffers = cmd_buffers;
+        self.presenter.cmd_bufs = cmd_buffer_builders;
         self.presenter.update(self.vk.clone(), el);
     }
  }

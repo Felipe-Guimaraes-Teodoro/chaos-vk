@@ -12,6 +12,7 @@ pub struct VkBuilder(
 );
 
 pub type CommandBufferType = Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>;
+pub type BuilderType = AutoCommandBufferBuilder<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>;
 
 impl VkBuilder {
     /// Command buffer builder made only for submitting once

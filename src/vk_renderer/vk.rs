@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use imgui::Context;
 use vulkano::command_buffer::allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
@@ -62,6 +63,7 @@ impl Vk {
     /* todo: create surface based on HasRawWindowHandle trait for cross platform compat */
     pub fn new(el: &mut EventLoop) -> Self {     
         let library = VulkanLibrary::new().expect("no local Vulkan library/DLL");
+
         
         let required_extensions = el.glfw.get_required_instance_extensions().unwrap();
         let instance = Instance::new(
