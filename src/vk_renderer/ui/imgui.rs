@@ -5,7 +5,7 @@ use imgui::{Context, DrawData, Ui};
 use vulkano::command_buffer::{CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo};
 use vulkano::render_pass::Framebuffer;
 
-use super::super::{presenter::Presenter, Vk, renderer::Renderer, command::VkBuilder};
+use super::super::{presenter::Presenter, Vk, renderer::Renderer, command::VkBuilder, shaders::graphics_pipeline::framebuffers};
 use super::renderer::{self, ImRenderer};
 
 pub struct ImGui {
@@ -84,12 +84,18 @@ impl ImGui {
     }
 
     pub fn draw(&mut self, renderer: &mut Renderer) {
+        let framebuffers = framebuffers(
+            renderer.vk.clone(), 
+            self.renderer.render_pass.clone(), 
+            &renderer.presenter.images
+        );
+
         let mut builder = VkBuilder::new_secondary(
             renderer.vk.clone(), 
             Some(CommandBufferInheritanceInfo {
                 render_pass: Some(vulkano::command_buffer::CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
                     subpass: self.renderer.subpass.clone(),
-                    framebuffer: Some(renderer.presenter.framebuffers[0].clone()),
+                    framebuffer: Some(framebuffers[0].clone()),
                 })),
                 ..Default::default()
             })

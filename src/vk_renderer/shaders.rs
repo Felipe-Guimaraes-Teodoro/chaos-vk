@@ -130,7 +130,8 @@ pub mod graphics_pipeline {
         .unwrap()
     }
 
-    pub fn framebuffers(
+    /* TODO! attachments as an argument here */
+    pub fn framebuffers_with_depth(
         vk: Arc<Vk>,
         rp: Arc<RenderPass>, 
         images: &Vec<Arc<Image>>
@@ -158,6 +159,27 @@ pub mod graphics_pipeline {
                     rp.clone(),
                     FramebufferCreateInfo {
                         attachments: vec![view, depth_image.clone()],
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn framebuffers(
+        vk: Arc<Vk>,
+        rp: Arc<RenderPass>, 
+        images: &Vec<Arc<Image>>
+    ) -> Vec<Arc<Framebuffer>> {
+        images
+            .iter()
+            .map(|image| {
+                let view = ImageView::new_default(image.clone()).unwrap();
+                Framebuffer::new(
+                    rp.clone(),
+                    FramebufferCreateInfo {
+                        attachments: vec![view],
                         ..Default::default()
                     },
                 )

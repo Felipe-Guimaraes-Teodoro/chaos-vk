@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, CommandBufferExecFuture, PrimaryAutoCommandBuffer}, image::Image, render_pass::Framebuffer, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{self, future::{FenceSignalFuture, JoinFuture}, GpuFuture}, Validated, VulkanError};
 
-use super::{command::{BuilderType, CommandBufferType}, events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, shaders::{fragment_shader, graphics_pipeline::{framebuffers, render_pass}, vertex_shader}, swapchain, Vk};
+use super::{command::{BuilderType, CommandBufferType}, events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, shaders::{fragment_shader, graphics_pipeline::{framebuffers_with_depth, render_pass}, vertex_shader}, swapchain, Vk};
 
 type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFuture<Box<dyn GpuFuture>, SwapchainAcquireFuture>>>>>;
 
@@ -35,7 +35,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
             Some(swapchain.clone())
         )];
 
-        let framebuffers = framebuffers(
+        let framebuffers = framebuffers_with_depth(
             vk.clone(),
             render_pass( vk.clone(), Some(swapchain.clone()) ),
             &images.clone()
@@ -80,7 +80,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
             self.swapchain = new_swapchain;
             self.images = new_images;
             
-            self.framebuffers = framebuffers(
+            self.framebuffers = framebuffers_with_depth(
                 vk.clone(),
                 self.pipelines[0].render_pass.clone(),
                 &self.images,

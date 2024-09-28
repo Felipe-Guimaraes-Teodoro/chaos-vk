@@ -20,7 +20,7 @@ use std::fmt;
 use imgui::{DrawVert, Textures, DrawCmd, DrawCmdParams, internal::RawWrapper, TextureId, ImString};
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex as VulkanoVertex};
 
-use crate::shaders::graphics_pipeline::framebuffer;
+use super::super::shaders::graphics_pipeline::framebuffer;
 
 use super::super::{command::{VkBuilder, submit_cmd_buf, BuilderType, SecBuilderType}, Vk, buffer::VkIterBuffer, shaders::graphics_pipeline::descriptor_set};
 
@@ -31,8 +31,8 @@ struct ImVertex {
     pub pos: [f32; 2],
     #[format(R32G32_SFLOAT)]
     pub uv : [f32; 2],
-    //#[format(R8G8B8A8_UNORM)]
-    //pub col: [u8; 4],
+    // #[format(R8G8B8A8_UNORM)]
+    // pub col: [u8; 4],
 
     #[format(R32_UINT)]
     pub col: u32, /* packed color */
@@ -45,12 +45,10 @@ pub enum RendererError {
 }
 
 pub struct ImRenderer {
-    render_pass: Arc<RenderPass>,
+    pub render_pass: Arc<RenderPass>,
     pipeline: Arc<GraphicsPipeline>,
     font_texture: Arc<Image>,
     textures: Textures<Image>,
-    vrt_buffer_pool: VkIterBuffer<ImVertex>,
-    idx_buffer_pool: VkIterBuffer<u16>,
     pub subpass: Subpass,
 }
 
@@ -70,7 +68,7 @@ impl ImRenderer {
             PipelineShaderStageCreateInfo::new(vs_entry),
             PipelineShaderStageCreateInfo::new(fs_entry),
         ];
-            
+        
         let layout = PipelineLayout::new(
             vk.device.clone(), 
             PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
@@ -133,10 +131,6 @@ impl ImRenderer {
         let font_texture = Self::upload_font_texture(ctx.fonts().build_rgba32_texture(), vk.allocators.memory.clone(), vk.clone());
 
         // ctx.set_renderer_name(Some(ImString::from(format!("imgui-vulkano-renderer {}", env!("CARGO_PKG_VERSION")))));
-        let vrt_buffer_pool = VkIterBuffer::vertex(vk.allocators.clone(), vec![ImVertex { 
-            pos: [0.0, 0.0], uv: [0.0, 0.0], col: 0, 
-        }]);
-        let idx_buffer_pool = VkIterBuffer::index(vk.allocators.clone(), vec![0]);
 
         Ok(ImRenderer {
             subpass,
@@ -144,8 +138,6 @@ impl ImRenderer {
             pipeline,
             font_texture,
             textures,
-            vrt_buffer_pool,
-            idx_buffer_pool,
         })
     }
 
@@ -251,6 +243,24 @@ impl ImRenderer {
                             }])
                             .unwrap();
 
+                        let vertices = draw_list
+                            .vtx_buffer()
+                            .iter()
+                            .map(|&v| ImVertex { pos: v.pos, uv: v.uv, col: pack_color(v.col) })
+                            .collect::<Vec<ImVertex>>();
+
+                        let indices = draw_list.idx_buffer();
+
+                        let vrt_buffer = VkIterBuffer::vertex(
+                            vk.allocators.clone(), 
+                            vertices,
+                        );
+
+                        let idx_buffer = VkIterBuffer::index(
+                            vk.allocators.clone(), 
+                            indices.to_vec()
+                        );
+
                         cmd_buf_builder
                             .bind_descriptor_sets(
                                 vulkano::pipeline::PipelineBindPoint::Graphics, 
@@ -259,17 +269,17 @@ impl ImRenderer {
                                 set.0,
                             )
                             .unwrap()
-                            .bind_vertex_buffers(0, self.vrt_buffer_pool.content.clone())
+                            .bind_vertex_buffers(0, vrt_buffer.content.clone())
                             .unwrap()
                             .bind_index_buffer(
-                                self.idx_buffer_pool.content.clone()
+                                idx_buffer.content.clone()
                             )
                             .unwrap()
                             .draw_indexed(
                                 count as u32, 
                                 1, 
                                 0, 
-                                0, 
+                                vtx_offset as i32, 
                                 0
                             )
                             .unwrap();
@@ -375,4 +385,13 @@ impl ImRenderer {
             },
         ).unwrap()
     }
+}
+
+fn pack_color(color: [u8; 4]) -> u32 {
+    let r = (color[0] as u32) << 24;
+    let g = (color[1] as u32) << 16;
+    let b = (color[2] as u32) << 8;
+    let a = color[3] as u32; 
+
+    r | g | b | a
 }
