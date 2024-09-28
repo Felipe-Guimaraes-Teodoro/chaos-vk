@@ -2,7 +2,7 @@ use crate::vk_renderer::buffer::VkIterBuffer;
 use crate::vk_renderer::command::{submit_cmd_buf, VkBuilder};
 use crate::vk_renderer::pipeline::VkComputePipeline;
 use crate::vk_renderer::shaders::mandelbrot_shader;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
@@ -22,6 +22,7 @@ use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
 use super::renderer::Renderer;
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
+use super::ui::imgui::ImGui;
 use super::ui::renderer::ImRenderer;
 use super::vertex::Vertex;
 
@@ -248,6 +249,11 @@ pub fn windowing() {
         );
     }
 
+    let mut imgui = ImGui::new(&mut el.window, &renderer.presenter, renderer.vk.clone());
+
+    let im_renderer = ImRenderer::new(&mut imgui.ctx, renderer.vk.clone(), Format::R8G8B8A8_SRGB)
+        .unwrap();
+
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
     while !el.window.should_close() {
@@ -256,6 +262,11 @@ pub fn windowing() {
         renderer.camera.mouse_callback(el.event_handler.mouse_pos, &el.window);
         renderer.camera.update(renderer.camera.pos, &el);
         
+        let ui = imgui.frame(&mut el.window);
+        ui.text("HI!");
+
+        imgui.draw(&mut renderer);
+
         if el.is_key_down(glfw::Key::LeftAlt) {
             el.window.set_cursor_mode(glfw::CursorMode::Normal);
         } else {

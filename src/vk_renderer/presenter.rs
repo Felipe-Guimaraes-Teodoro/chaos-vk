@@ -89,6 +89,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
             if self.window_resized {
                 self.window_resized = false;
                 
+                /* will probably need to store the subpass later on */
                 for pipeline in &mut self.pipelines {
                     pipeline.viewport.extent = [new_w, new_h];
                     pipeline.graphics_pipeline = crate::vk_renderer::shaders::graphics_pipeline::graphics_pipeline(
@@ -98,7 +99,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                         pipeline.pipeline_layout.as_ref(),
                         pipeline.render_pass.clone(),
                         pipeline.viewport.clone(),
-                    );
+                    ).0;
                 }
             }
         }

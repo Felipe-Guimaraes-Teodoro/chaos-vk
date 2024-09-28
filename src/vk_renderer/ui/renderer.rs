@@ -2,7 +2,8 @@
 #![allow(unused_imports, dead_code, deprecated)]
 
 use ahash::HashSetExt;
-use vulkano::{buffer::BufferUsage, command_buffer::{allocator::StandardCommandBufferAllocator, CopyBufferToImageInfo, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::{DescriptorImageViewInfo, WriteDescriptorSet, WriteDescriptorSetElements}, image::{sampler::Sampler, view::{ImageView, ImageViewCreateInfo, ImageViewType}, Image, ImageCreateInfo, ImageType, ImageUsage}, memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter}, pipeline::{graphics::{color_blend::ColorBlendState, input_assembly::InputAssemblyState, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition, VertexInputState}, viewport::{Scissor, Viewport, ViewportState}, GraphicsPipelineCreateInfo}, layout::PipelineDescriptorSetLayoutCreateInfo, DynamicState, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::RenderPass, shader::ShaderStages};
+use smallvec::smallvec;
+use vulkano::{buffer::BufferUsage, command_buffer::{allocator::StandardCommandBufferAllocator, CopyBufferToImageInfo, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::{DescriptorImageViewInfo, WriteDescriptorSet, WriteDescriptorSetElements}, image::{sampler::{Filter, Sampler, SamplerCreateInfo, SamplerMipmapMode}, view::{ImageView, ImageViewCreateInfo, ImageViewType}, Image, ImageAspects, ImageCreateInfo, ImageSubresourceRange, ImageType, ImageUsage}, memory::allocator::{AllocationCreateInfo, MemoryAllocator, MemoryTypeFilter}, pipeline::{graphics::{color_blend::ColorBlendState, input_assembly::InputAssemblyState, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition, VertexInputState}, viewport::{Scissor, Viewport, ViewportState}, GraphicsPipelineCreateInfo}, layout::PipelineDescriptorSetLayoutCreateInfo, DynamicState, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::RenderPass, shader::ShaderStages};
 use vulkano::command_buffer::AutoCommandBufferBuilder;
 use vulkano::device::{Device, Queue};
 use vulkano::pipeline::GraphicsPipeline;
@@ -13,15 +14,15 @@ use vulkano::format::{Format, ClearValue};
 use vulkano::render_pass::Subpass;
 use vulkano::render_pass::Framebuffer;
 
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, sync::{Arc, Mutex}};
 use std::fmt;
 
 use imgui::{DrawVert, Textures, DrawCmd, DrawCmdParams, internal::RawWrapper, TextureId, ImString};
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex as VulkanoVertex};
 
-use crate::command::BuilderType;
+use crate::shaders::graphics_pipeline::framebuffer;
 
-use super::super::{command::{VkBuilder, submit_cmd_buf}, Vk, buffer::VkIterBuffer, shaders::graphics_pipeline::descriptor_set};
+use super::super::{command::{VkBuilder, submit_cmd_buf, BuilderType, SecBuilderType}, Vk, buffer::VkIterBuffer, shaders::graphics_pipeline::descriptor_set};
 
 #[derive(Default, Debug, Clone, VulkanoVertex, BufferContents)]
 #[repr(C)]
@@ -50,6 +51,7 @@ pub struct ImRenderer {
     textures: Textures<Image>,
     vrt_buffer_pool: VkIterBuffer<ImVertex>,
     idx_buffer_pool: VkIterBuffer<u16>,
+    pub subpass: Subpass,
 }
 
 impl ImRenderer {
@@ -92,7 +94,6 @@ impl ImRenderer {
                 },
             )
         .unwrap();
-        
     
         let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
 
@@ -138,6 +139,7 @@ impl ImRenderer {
         let idx_buffer_pool = VkIterBuffer::index(vk.allocators.clone(), vec![0]);
 
         Ok(ImRenderer {
+            subpass,
             render_pass,
             pipeline,
             font_texture,
@@ -147,7 +149,7 @@ impl ImRenderer {
         })
     }
 
-    pub fn draw_commands(&mut self, cmd_buf_builder: &mut BuilderType, framebuffer: Arc<Framebuffer>, draw_data: &imgui::DrawData, vk: Arc<Vk>) {
+    pub fn draw_commands(&mut self, cmd_buf_builder: &mut SecBuilderType, framebuffers: Arc<Framebuffer>, draw_data: &imgui::DrawData, vk: Arc<Vk>) {
         let fb_width = draw_data.display_size[0] * draw_data.framebuffer_scale[0];
         let fb_height = draw_data.display_size[1] * draw_data.framebuffer_scale[1];
         if !(fb_width > 0.0 && fb_height > 0.0) {
@@ -159,7 +161,7 @@ impl ImRenderer {
         let top = draw_data.display_pos[1];
         let bottom = draw_data.display_pos[1] + draw_data.display_size[1];
 
-        let _pc = super::shaders::imvs::VertPC {
+        let pc = super::shaders::imvs::VertPC {
             matrix : [
                 [(2.0 / (right - left)), 0.0, 0.0, 0.0],
                 [0.0, (2.0 / (bottom - top)), 0.0, 0.0],
@@ -173,20 +175,36 @@ impl ImRenderer {
             ]
         };
 
-        let _dims = framebuffer.attachments()[0].image().extent();
+        let _dims = framebuffers.attachments()[0].image().extent();
 
         let clip_off = draw_data.display_pos;
         let clip_scale = draw_data.framebuffer_scale;
 
+        // cmd_buf_builder
+        //     .begin_render_pass(
+        //         RenderPassBeginInfo::framebuffer(framebuffer),
+        //         SubpassBeginInfo {
+        //             contents: SubpassContents::Inline,
+        //             ..Default::default()
+        //         }
+        //     )
+        //     .unwrap();
+
         cmd_buf_builder
-            .begin_render_pass(
-                RenderPassBeginInfo::framebuffer(framebuffer),
-                SubpassBeginInfo {
-                    contents: SubpassContents::Inline,
-                    ..Default::default()
-                }
-            )
+            .bind_pipeline_graphics(self.pipeline.clone())
             .unwrap();
+
+        cmd_buf_builder.push_constants(self.pipeline.layout().clone(), 0, pc).unwrap();
+        
+        cmd_buf_builder
+            .set_viewport_with_count(smallvec![Viewport {
+                offset: [0.0, 0.0],
+                extent: [fb_width, fb_height],
+                depth_range: 0.0..=1.0,
+            }])
+            .unwrap();
+
+        dbg!(self.pipeline.dynamic_state());
 
         for draw_list in draw_data.draw_lists() {
             for cmd in draw_list.commands() {
@@ -200,25 +218,40 @@ impl ImRenderer {
                             idx_offset,
                         }
                     } => {
-                        // let clip_rect = [
-                        //     (clip_rect[0] - clip_off[0]) * clip_scale[0],
-                        //     (clip_rect[1] - clip_off[1]) * clip_scale[1],
-                        //     (clip_rect[2] - clip_off[0]) * clip_scale[0],
-                        //     (clip_rect[3] - clip_off[1]) * clip_scale[1],
-                        // ];
+                        let clip_rect = [
+                            (clip_rect[0] - clip_off[0]) * clip_scale[0],
+                            (clip_rect[1] - clip_off[1]) * clip_scale[1],
+                            (clip_rect[2] - clip_off[0]) * clip_scale[0],
+                            (clip_rect[3] - clip_off[1]) * clip_scale[1],
+                        ];
+                        let scissor_offset = [
+                            clip_rect[0] as u32,
+                            clip_rect[1] as u32,
+                        ];
+
+                        let scissor_extent = [
+                            (clip_rect[2] - clip_rect[0]) as u32,
+                            (clip_rect[3] - clip_rect[1]) as u32,
+                        ];
 
                         let tex = self.lookup_texture(texture_id);
+                        let sampler = self.get_sampler(vk.clone());
 
                         let set = descriptor_set(
                             vk.clone(), 
                             0, 
                             self.pipeline.clone(), 
-                            [WriteDescriptorSet::image_view(0, tex.unwrap())],
+                            [WriteDescriptorSet::image_view_sampler(0, tex.unwrap(), sampler)],
                         );
 
                         cmd_buf_builder
-                            .bind_pipeline_graphics(self.pipeline.clone())
-                            .unwrap()
+                            .set_scissor_with_count(smallvec![Scissor { 
+                                offset: scissor_offset,
+                                extent: scissor_extent
+                            }])
+                            .unwrap();
+
+                        cmd_buf_builder
                             .bind_descriptor_sets(
                                 vulkano::pipeline::PipelineBindPoint::Graphics, 
                                 self.pipeline.layout().clone(), 
@@ -316,17 +349,30 @@ impl ImRenderer {
     }
 
     fn lookup_texture(&self, texture_id: TextureId) -> Option<Arc<ImageView>> {
-        if texture_id.id() == usize::MAX {
-            return Some(ImageView::new(
-                self.font_texture.clone(), 
-                ImageViewCreateInfo { 
-                    format: Format::R8G8B8A8_SRGB, 
-                    usage: ImageUsage::STORAGE,
-                    ..Default::default()
-                }
-            ).unwrap());
-        } else {
-            None
-        }
+        return Some(ImageView::new(
+            self.font_texture.clone(), 
+            ImageViewCreateInfo { 
+                format: Format::R8G8B8A8_SRGB, 
+                usage: ImageUsage::SAMPLED,
+                subresource_range: ImageSubresourceRange {
+                    mip_levels: 0..1,
+                    array_layers: 0..1,
+                    aspects: ImageAspects::COLOR,
+                },
+                ..Default::default()
+            }
+        ).unwrap());
+    }
+
+    fn get_sampler(&self, vk: Arc<Vk>) -> Arc<vulkano::image::sampler::Sampler> {
+        Sampler::new(
+            vk.device.clone(),
+            SamplerCreateInfo {
+                mag_filter: Filter::Linear,
+                min_filter: Filter::Linear,
+                mipmap_mode: SamplerMipmapMode::Linear,
+                ..Default::default()
+            },
+        ).unwrap()
     }
 }

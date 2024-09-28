@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture, PrimaryAutoCommandBuffer}, sync::{self, future::{FenceSignalFuture, NowFuture}, GpuFuture}};
+use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture, CommandBufferInheritanceInfo, CommandBufferUsage, PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer}, render_pass::Framebuffer, sync::{self, future::{FenceSignalFuture, NowFuture}, GpuFuture}};
 
-use super::Vk;
+use super::{pipeline::VkGraphicsPipeline, renderer::Renderer, Vk};
 
 pub struct VkBuilder(
     pub AutoCommandBufferBuilder<
@@ -12,6 +12,8 @@ pub struct VkBuilder(
 );
 
 pub type CommandBufferType = Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>;
+pub type SecondaryCmdBufType = Arc<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>;
+pub type SecBuilderType = AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>;
 pub type BuilderType = AutoCommandBufferBuilder<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>;
 
 impl VkBuilder {
@@ -39,6 +41,24 @@ impl VkBuilder {
         Self(builder)
     }
 
+    pub fn new_secondary(
+        vk: Arc<Vk>,
+        inheritance_info: Option<CommandBufferInheritanceInfo>,
+    ) -> SecBuilderType {
+        let builder = AutoCommandBufferBuilder::secondary(
+            &vk.allocators.command.clone(),
+            vk.queue_family_index,
+            CommandBufferUsage::SimultaneousUse,
+            match inheritance_info {
+                Some(info) => info,
+                None => CommandBufferInheritanceInfo::default(),
+            }
+        )
+        .unwrap();
+    
+        builder
+    }
+
     pub fn command_buffer(self) -> CommandBufferType 
     {
         self.0.build().unwrap()
@@ -51,4 +71,8 @@ pub fn submit_cmd_buf(vk: Arc<Vk>, cmd_buf: CommandBufferType) -> FenceSignalFut
         .unwrap()
         .then_signal_fence_and_flush()
         .unwrap()
+}
+
+impl Renderer {
+    
 }

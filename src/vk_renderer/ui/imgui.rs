@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use glfw::Window;
-use imgui::{Context, Ui};
+use imgui::{Context, DrawData, Ui};
+use vulkano::command_buffer::{CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo};
+use vulkano::render_pass::Framebuffer;
 
-use crate::renderer::Renderer;
-
-use super::super::{presenter::Presenter, Vk};
+use super::super::{presenter::Presenter, Vk, renderer::Renderer, command::VkBuilder};
 use super::renderer::{self, ImRenderer};
 
 pub struct ImGui {
@@ -83,21 +83,24 @@ impl ImGui {
         self.ctx.io_mut().mouse_wheel_h = x;
     }
 
-    pub fn draw(&mut self, im_renderer: Arc<Mutex<ImRenderer>>, renderer: Arc<Mutex<Renderer>>) {
-        let draw_data = Arc::new(self.ctx.render());
+    pub fn draw(&mut self, renderer: &mut Renderer) {
+        let mut builder = VkBuilder::new_secondary(
+            renderer.vk.clone(), 
+            Some(CommandBufferInheritanceInfo {
+                render_pass: Some(vulkano::command_buffer::CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
+                    subpass: self.renderer.subpass.clone(),
+                    framebuffer: Some(renderer.presenter.framebuffers[0].clone()),
+                })),
+                ..Default::default()
+            })
+        );
+
+        self.renderer.draw_commands(
+            &mut builder, 
+            renderer.presenter.framebuffers[0].clone(), 
+            self.ctx.render(), 
+            renderer.vk.clone()
+        );
         
-        let mut renderer = renderer.lock().unwrap();
-        let vk = renderer.vk.clone();
-        let framebuffers = renderer.presenter.framebuffers.clone();
-        
-        renderer.cmd_buf_callbacks.push(Box::new(move |builder| {
-            im_renderer.lock().unwrap().draw_commands(
-                builder,
-                framebuffers[0].clone(),
-                &draw_data.clone(),
-                todo!(),
-            );
-            
-        }));
     }
 }

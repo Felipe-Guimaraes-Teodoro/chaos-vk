@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::RenderPass, shader::ShaderModule, swapchain::Swapchain};
+use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::{RenderPass, Subpass}, shader::ShaderModule, swapchain::Swapchain};
 
 use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_pipeline, graphics_pipeline}, Vk};
 
@@ -8,6 +8,7 @@ use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_pipeline, gr
 pub struct VkGraphicsPipeline {
     pub _vk: Arc<Vk>,
     pub graphics_pipeline: Arc<GraphicsPipeline>,
+    pub subpass: Subpass,
     pub render_pass: Arc<RenderPass>,
     // pub descriptor_set: Option<Arc<PersistentDescriptorSet>>,
     // pub descriptor_set_layout_index: Option<usize>,
@@ -38,7 +39,7 @@ impl VkGraphicsPipeline {
             swapchain
         );
 
-        let graphics_pipeline = graphics_pipeline::graphics_pipeline(
+        let (graphics_pipeline, subpass) = graphics_pipeline::graphics_pipeline(
             vk.clone(),
             vs.clone(),
             fs.clone(),
@@ -55,6 +56,7 @@ impl VkGraphicsPipeline {
             pipeline_layout: custom_layout,
             vs,
             fs,
+            subpass,
         }
     }
 

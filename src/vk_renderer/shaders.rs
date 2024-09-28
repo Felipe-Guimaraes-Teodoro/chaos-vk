@@ -174,7 +174,7 @@ pub mod graphics_pipeline {
         layout: &dyn Fn() -> Arc<PipelineLayout>,
         rp: Arc<RenderPass>,
         vp: Viewport
-    ) -> Arc<GraphicsPipeline> {
+    ) -> (Arc<GraphicsPipeline>, Subpass) {
         let vs_entry = vs.entry_point("main").unwrap();
         let fs_entry = fs.entry_point("main").unwrap();
 
@@ -221,13 +221,13 @@ pub mod graphics_pipeline {
 
                 depth_stencil_state: Some(DepthStencilState::simple_depth_test()),
 
-                subpass: Some(subpass.into()),
+                subpass: Some(subpass.clone().into()),
                 ..GraphicsPipelineCreateInfo::layout(layout)
             },
         )
         .unwrap();
 
-        pipeline
+        (pipeline, subpass)
     }
 
     pub fn descriptor_set(

@@ -28,7 +28,11 @@ impl MemAllocators {
             ),
             command: Arc::new(StandardCommandBufferAllocator::new(
                     device.clone(), 
-                    StandardCommandBufferAllocatorCreateInfo::default()
+                    StandardCommandBufferAllocatorCreateInfo {
+                        primary_buffer_count: 1,
+                        secondary_buffer_count: 1,
+                        ..Default::default()
+                    }
                 )
             ),
             descriptor_set: Arc::new(StandardDescriptorSetAllocator::new(

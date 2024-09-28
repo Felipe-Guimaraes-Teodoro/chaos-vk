@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use imgui::{Context, DrawData};
-use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::Pipeline, render_pass::Framebuffer};
+use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SecondaryAutoCommandBuffer, SubpassBeginInfo, SubpassContents}, pipeline::Pipeline, render_pass::Framebuffer};
 
 use crate::vk_renderer::Vk;
 
@@ -13,7 +13,7 @@ pub struct Renderer {
     pub camera: Camera,
     pub meshes: Vec<Mesh>,
 
-    pub cmd_buf_callbacks: Vec<Box<dyn Fn(&mut BuilderType) + Send + Sync>>,
+    pub sec_cmd_bufs: Vec<Arc<SecondaryAutoCommandBuffer>>,
 } 
 
 impl Renderer {
@@ -29,7 +29,7 @@ impl Renderer {
             presenter,
             camera,
             meshes: vec![],
-            cmd_buf_callbacks: vec![],
+            sec_cmd_bufs: vec![],
         }
     }
 
@@ -93,13 +93,17 @@ impl Renderer {
                         .unwrap();
                 }
 
+                
                 builder.0
                     .end_render_pass(Default::default())
                     .unwrap();
 
-                for callback in &self.cmd_buf_callbacks {
-                    callback(&mut builder.0);
+                for sec_cmd_buf in &self.sec_cmd_bufs {
+                    builder.0
+                        .execute_commands(sec_cmd_buf.clone())
+                        .unwrap();
                 }
+                
 
                 builder.0.build().unwrap()
             })
