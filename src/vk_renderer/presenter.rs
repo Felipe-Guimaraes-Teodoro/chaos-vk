@@ -75,21 +75,19 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                     ..self.swapchain.create_info()
                 })
                 .expect("failed to recreate swapchain");
-
-            
+                
             self.swapchain = new_swapchain;
             self.images = new_images;
             
-            self.framebuffers = framebuffers_with_depth(
-                vk.clone(),
-                self.pipelines[0].render_pass.clone(),
-                &self.images,
-            );
-            
-            if self.window_resized {
+            if self.window_resized {    
                 self.window_resized = false;
+
+                self.framebuffers = framebuffers_with_depth(
+                    vk.clone(),
+                    self.pipelines[0].render_pass.clone(),
+                    &self.images,
+                );
                 
-                /* will probably need to store the subpass later on */
                 for pipeline in &mut self.pipelines {
                     pipeline.viewport.extent = [new_w, new_h];
                     pipeline.graphics_pipeline = crate::vk_renderer::shaders::graphics_pipeline::graphics_pipeline(

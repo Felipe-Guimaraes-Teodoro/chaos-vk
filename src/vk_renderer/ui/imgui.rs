@@ -90,23 +90,30 @@ impl ImGui {
             &renderer.presenter.images
         );
 
-        let mut builder = VkBuilder::new_secondary(
-            renderer.vk.clone(), 
-            Some(CommandBufferInheritanceInfo {
-                render_pass: Some(vulkano::command_buffer::CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
-                    subpass: self.renderer.subpass.clone(),
-                    framebuffer: Some(framebuffers[0].clone()),
-                })),
-                ..Default::default()
-            })
-        );
+        let draw_data = self.ctx.render();
 
-        self.renderer.draw_commands(
-            &mut builder, 
-            renderer.presenter.framebuffers[0].clone(), 
-            self.ctx.render(), 
-            renderer.vk.clone()
-        );
-        
+        for framebuffer in framebuffers {
+            let mut builder = VkBuilder::new_secondary(
+                renderer.vk.clone(), 
+                Some(CommandBufferInheritanceInfo {
+                    render_pass: Some(vulkano::command_buffer::CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
+                        subpass: self.renderer.subpass.clone(),
+                        framebuffer: Some(framebuffer.clone()),
+                    })),
+                    ..Default::default()
+                })
+            );
+
+            self.renderer.draw_commands(
+                &mut builder, 
+                renderer.presenter.framebuffers.clone(), 
+                draw_data, 
+                renderer.vk.clone()
+            );
+
+            renderer.sec_cmd_bufs.push(
+                builder.build().unwrap(),
+            );
+        }
     }
 }

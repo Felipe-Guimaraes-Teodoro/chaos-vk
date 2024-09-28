@@ -141,7 +141,7 @@ impl ImRenderer {
         })
     }
 
-    pub fn draw_commands(&mut self, cmd_buf_builder: &mut SecBuilderType, framebuffers: Arc<Framebuffer>, draw_data: &imgui::DrawData, vk: Arc<Vk>) {
+    pub fn draw_commands(&mut self, cmd_buf_builder: &mut SecBuilderType, framebuffers: Vec<Arc<Framebuffer>>, draw_data: &imgui::DrawData, vk: Arc<Vk>) {
         let fb_width = draw_data.display_size[0] * draw_data.framebuffer_scale[0];
         let fb_height = draw_data.display_size[1] * draw_data.framebuffer_scale[1];
         if !(fb_width > 0.0 && fb_height > 0.0) {
@@ -167,7 +167,7 @@ impl ImRenderer {
             ]
         };
 
-        let _dims = framebuffers.attachments()[0].image().extent();
+        let _dims = framebuffers[0].attachments()[0].image().extent();
 
         let clip_off = draw_data.display_pos;
         let clip_scale = draw_data.framebuffer_scale;
@@ -191,13 +191,10 @@ impl ImRenderer {
         cmd_buf_builder
             .set_viewport_with_count(smallvec![Viewport {
                 offset: [0.0, 0.0],
-                extent: [fb_width, fb_height],
+                extent: [100.0, 100.0],
                 depth_range: 0.0..=1.0,
             }])
             .unwrap();
-
-        dbg!(self.pipeline.dynamic_state());
-
         for draw_list in draw_data.draw_lists() {
             for cmd in draw_list.commands() {
                 match cmd {
@@ -238,7 +235,7 @@ impl ImRenderer {
 
                         cmd_buf_builder
                             .set_scissor_with_count(smallvec![Scissor { 
-                                offset: scissor_offset,
+                                offset: [0, 0],
                                 extent: scissor_extent
                             }])
                             .unwrap();
@@ -292,11 +289,8 @@ impl ImRenderer {
                         callback(draw_list.raw(), raw_cmd);
                     },
                 }
-
-            }
-        } /* for draw list in ... */
-
-
+            } /* for draw list in ... */
+        }
     }
 
     pub fn reload_font_texture(
@@ -394,4 +388,13 @@ fn pack_color(color: [u8; 4]) -> u32 {
     let a = color[3] as u32; 
 
     r | g | b | a
+}
+
+fn unpack_color(packed_color: u32) -> [u8; 4] {
+    let r = ((packed_color >> 24) & 0xFF) as u8;
+    let g = ((packed_color >> 16) & 0xFF) as u8;
+    let b = ((packed_color >> 8) & 0xFF) as u8;
+    let a = (packed_color & 0xFF) as u8;
+
+    [r, g, b, a]
 }

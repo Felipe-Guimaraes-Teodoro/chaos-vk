@@ -5,7 +5,7 @@ use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBu
 
 use crate::vk_renderer::Vk;
 
-use super::{command::{BuilderType, CommandBufferType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter, ui::renderer::ImRenderer};
+use super::{command::{BuilderType, CommandBufferType, SecondaryCmdBufType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter, ui::renderer::ImRenderer};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,
@@ -13,7 +13,7 @@ pub struct Renderer {
     pub camera: Camera,
     pub meshes: Vec<Mesh>,
 
-    pub sec_cmd_bufs: Vec<Arc<SecondaryAutoCommandBuffer>>,
+    pub sec_cmd_bufs: Vec<SecondaryCmdBufType>,
 } 
 
 impl Renderer {
@@ -98,13 +98,39 @@ impl Renderer {
                     .end_render_pass(Default::default())
                     .unwrap();
 
-                for sec_cmd_buf in &self.sec_cmd_bufs {
-                    builder.0
-                        .execute_commands(sec_cmd_buf.clone())
-                        .unwrap();
-                }
-                
+                /* SECONDARY RENDER PASS */
+                /* fix for this: 
+                    instead of recording a vec of each secondary command
+                    buffer, create a new structure VkRenderPass that can
+                    store the secondary command buffer and the necessary
+                    information for creating the render pass (render_pas
+                    s and framebuffer).
 
+                    later iterate through each of those and blah blah bl
+                    ah, you get it. bro why is this getting more complic
+                    aded each passing second....
+                 */
+                // builder.0
+                //     .begin_render_pass(RenderPassBeginInfo {
+                //         render_pass: todo!(),
+                //         framebuffer: todo!(),
+                //     },
+                //     SubpassBeginInfo {
+                //         contents: SubpassContents::SecondaryCommandBuffers,
+                //         ..Default::default()
+                //     }
+                // )
+// 
+                // for sec_cmd_buf in &self.sec_cmd_bufs {
+                //     builder.0
+                //         .execute_commands(sec_cmd_buf.clone())
+                //         .unwrap();
+                // }
+// 
+                // builder.0
+                //     .end_render_pass(Default::default())
+                //     .unwrap();
+                
                 builder.0.build().unwrap()
             })
             .collect()

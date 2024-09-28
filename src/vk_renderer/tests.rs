@@ -262,10 +262,12 @@ pub fn windowing() {
         renderer.camera.mouse_callback(el.event_handler.mouse_pos, &el.window);
         renderer.camera.update(renderer.camera.pos, &el);
         
-        let ui = imgui.frame(&mut el.window);
-        ui.text("HI!");
+        // let ui = imgui.frame(&mut el.window);
+        // ui.text("HI!");
 
-        imgui.draw(&mut renderer);
+        // ui.show_demo_window(&mut true);
+
+        // imgui.draw(&mut renderer);
 
         if el.is_key_down(glfw::Key::LeftAlt) {
             el.window.set_cursor_mode(glfw::CursorMode::Normal);
