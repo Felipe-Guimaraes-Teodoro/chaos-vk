@@ -385,10 +385,10 @@ impl ImRenderer {
 }
 
 fn pack_color(color: [u8; 4]) -> u32 {
-    let r = (color[0] as u32) << 24;
-    let g = (color[1] as u32) << 16;
-    let b = (color[2] as u32) << 8;
-    let a = color[3] as u32; 
+    let r = color[0] as u32;
+    let g = (color[1] as u32) << 8;
+    let b = (color[2] as u32) << 16;
+    let a = (color[3] as u32) << 24;
 
     r | g | b | a
 }

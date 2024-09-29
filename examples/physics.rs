@@ -115,18 +115,19 @@ fn main() {
         for position in &positions {
             if renderer.meshes.len() < positions.len() {
                 let new_circle = sphere(16, 1.0);
-                renderer.meshes.push(
-                    Mesh::new(&new_circle.vertices, &new_circle.indices, &renderer)
+                renderer.meshes.insert(
+                    0,
+                    Mesh::new(&new_circle.vertices, &new_circle.indices, &renderer),
                 );
             }
 
-            renderer.meshes[i].position = 
+            renderer.meshes.get_mut(&(i as usize)).unwrap().position = 
                 vec3(position[0], position[1], position[2]);
 
             i+=1;
         }
 
-        for mesh in &mut renderer.meshes {
+        for mesh in &mut renderer.meshes.values_mut() {
             for vertex in &mut mesh.vertices {
                 let mut col = vec3(mesh.position.x, mesh.position.y, mesh.position.z) * 2.0 - 1.0;
                 col /= 100.0;
@@ -134,7 +135,7 @@ fn main() {
             }
         }
 
-        for mesh in &mut renderer.meshes {
+        for mesh in &mut renderer.meshes.values_mut() {
             mesh.rebuild(renderer.vk.clone());  // Use the separate immutable reference
         }
 

@@ -201,6 +201,8 @@ pub fn windowing() {
     let mut el = EventLoop::new(1200, 900);
 
     let mut renderer = Renderer::new(&mut el);
+
+    el.ui.setup_renderer(&mut renderer);
     
     renderer.presenter.window_resized = true;
 
@@ -250,8 +252,6 @@ pub fn windowing() {
         );
     }
 
-    let mut imgui = ImGui::new(&mut el.window, &renderer.presenter, renderer.vk.clone());
-
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
     while !el.window.should_close() {
@@ -260,12 +260,12 @@ pub fn windowing() {
         renderer.camera.mouse_callback(el.event_handler.mouse_pos, &el.window);
         renderer.camera.update(renderer.camera.pos, &el);
         
-        let ui = imgui.frame(&mut el.window);
+        let ui = el.ui.frame(&mut el.window);
         ui.text("hello world");
 
         ui.show_demo_window(&mut true);
 
-        imgui.draw(&mut renderer);
+        el.ui.draw(&mut renderer);
         
         let now = std::time::Instant::now();
         renderer.update(&mut el);

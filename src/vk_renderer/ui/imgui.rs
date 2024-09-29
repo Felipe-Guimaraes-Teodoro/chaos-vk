@@ -10,27 +10,31 @@ use super::renderer::{self, ImRenderer};
 
 pub struct ImGui {
     last_frame: f64,
-    pub renderer: ImRenderer,
+    pub renderer: Option<ImRenderer>,
     pub ctx: Context,
 }
 
 impl ImGui {
-    pub fn new(window: &mut Window, presenter: &Presenter, vk: Arc<Vk>) -> Self {
+    pub fn new(window: &mut Window) -> Self {
         let mut ctx = imgui::Context::create();
 
         ctx.set_ini_filename(None);
 
-        let renderer = ImRenderer::new(
-            &mut ctx,
-            vk.clone(),
-            presenter.swapchain.image_format(),
-        ).unwrap();
+        let renderer = None;
 
         Self {
             last_frame: window.glfw.get_time(),
             renderer, 
             ctx,
         }
+    }
+
+    pub fn setup_renderer(&mut self, renderer: &mut Renderer) {
+        self.renderer = Some(ImRenderer::new(
+                    &mut self.ctx,
+                    renderer.vk.clone(),
+                    renderer.presenter.swapchain.image_format(),
+                ).unwrap());
     }
 
     pub fn frame(&mut self, window: &mut Window) -> &mut Ui {
@@ -84,47 +88,50 @@ impl ImGui {
     }
 
     pub fn draw(&mut self, renderer: &mut Renderer) {
-        let framebuffers = framebuffers(
-            renderer.vk.clone(), 
-            self.renderer.render_pass.clone(), 
-            &renderer.presenter.images
-        );
-
-        let draw_data = self.ctx.render();
-
-        /*  maybe just use a primary command buffer for imgui
-            instead of relying on this
-         */
-        for framebuffer in &framebuffers {
-            let mut builder = VkBuilder::new_secondary(
+        if let Some(im_renderer) = &mut self.renderer {
+            let framebuffers = framebuffers(
                 renderer.vk.clone(), 
-                Some(CommandBufferInheritanceInfo {
-                    render_pass: Some(vulkano::command_buffer::CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
-                        subpass: self.renderer.subpass.clone(),
-                        framebuffer: Some(framebuffer.clone()),
-                    })),
-                    ..Default::default()
-                })
+                im_renderer.render_pass.clone(), 
+                &renderer.presenter.images
             );
+    
+            let draw_data = self.ctx.render();
+    
+            /*  maybe just use a primary command buffer for imgui
+                instead of relying on this
+             */
+            for framebuffer in &framebuffers {
+                let mut builder = VkBuilder::new_secondary(
+                    renderer.vk.clone(), 
+                    Some(CommandBufferInheritanceInfo {
+                        render_pass: Some(vulkano::command_buffer::CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
+                            subpass: im_renderer.subpass.clone(),
+                            framebuffer: Some(framebuffer.clone()),
+                        })),
+                        ..Default::default()
+                    })
+                );
+    
+                im_renderer.draw_commands(
+                    &mut builder, 
+                    framebuffer.clone(), 
+                    draw_data,
+                    renderer.vk.clone()
+                );
+    
+                let cmd_buf = builder.build().unwrap();
+    
+                let pass = VkSecRenderpass {
+                    cmd_buf,
+                    framebuffer: framebuffer.clone(),
+                    rp: im_renderer.render_pass.clone(),
+                };
+    
+                renderer.sec_renderpasses.push(
+                    pass,
+                );
+            }
 
-            self.renderer.draw_commands(
-                &mut builder, 
-                framebuffer.clone(), 
-                draw_data,
-                renderer.vk.clone()
-            );
-
-            let cmd_buf = builder.build().unwrap();
-
-            let pass = VkSecRenderpass {
-                cmd_buf,
-                framebuffer: framebuffer.clone(),
-                rp: self.renderer.render_pass.clone(),
-            };
-
-            renderer.sec_renderpasses.push(
-                pass,
-            );
         }
     }
 }
