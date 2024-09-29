@@ -80,12 +80,10 @@ impl Renderer {
                     )
                     .unwrap();
             }
-
             builder.0
                 .end_render_pass(Default::default())
                 .unwrap();
             
-            /* 
             for pass in &self.sec_renderpasses {
                 builder.0
                     .begin_render_pass(
@@ -108,10 +106,9 @@ impl Renderer {
                     .end_render_pass(Default::default())
                     .unwrap();
             }
-            */
 
             self.sec_renderpasses.clear();
-            
+
             cmd_bufs.push(builder.0.build().unwrap());
         }
 
@@ -120,11 +117,11 @@ impl Renderer {
 
     pub fn update(&mut self, el: &mut EventLoop) {
         // self.presenter.recreate_swapchain = true;
-        let cmd_buffer_builders = self.get_command_buffers(
+        let cmd_bufs = self.get_command_buffers(
             self.presenter.pipelines.clone(), 
             self.presenter.framebuffers.clone(),
         );
-        self.presenter.cmd_bufs = cmd_buffer_builders;
+        self.presenter.cmd_bufs = cmd_bufs;
         self.presenter.update(self.vk.clone(), el);
     }
  }

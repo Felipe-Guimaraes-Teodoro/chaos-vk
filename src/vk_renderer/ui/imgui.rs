@@ -92,7 +92,10 @@ impl ImGui {
 
         let draw_data = self.ctx.render();
 
-        for framebuffer in framebuffers {
+        /*  maybe just use a primary command buffer for imgui
+            instead of relying on this
+         */
+        for framebuffer in &framebuffers {
             let mut builder = VkBuilder::new_secondary(
                 renderer.vk.clone(), 
                 Some(CommandBufferInheritanceInfo {
@@ -115,7 +118,7 @@ impl ImGui {
 
             let pass = VkSecRenderpass {
                 cmd_buf,
-                framebuffer,
+                framebuffer: framebuffer.clone(),
                 rp: self.renderer.render_pass.clone(),
             };
 

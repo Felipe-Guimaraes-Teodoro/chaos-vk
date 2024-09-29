@@ -49,6 +49,7 @@ pub struct ImRenderer {
     pipeline: Arc<GraphicsPipeline>,
     font_texture: Arc<Image>,
     textures: Textures<Image>,
+    format: Format,
     pub subpass: Subpass,
 }
 
@@ -128,11 +129,12 @@ impl ImRenderer {
 
         let textures = Textures::new();
 
-        let font_texture = Self::upload_font_texture(ctx.fonts().build_rgba32_texture(), vk.allocators.memory.clone(), vk.clone());
+        let font_texture = Self::upload_font_texture(format, ctx.fonts().build_rgba32_texture(), vk.allocators.memory.clone(), vk.clone());
 
         // ctx.set_renderer_name(Some(ImString::from(format!("imgui-vulkano-renderer {}", env!("CARGO_PKG_VERSION")))));
 
         Ok(ImRenderer {
+            format,
             subpass,
             render_pass,
             pipeline,
@@ -300,7 +302,7 @@ impl ImRenderer {
         vk: Arc<Vk>,
         _queue : Arc<Queue>,
     ) {
-        let upload_font_texture = Self::upload_font_texture(ctx.fonts().build_rgba32_texture(), vk.allocators.memory.clone(), vk.clone()); 
+        let upload_font_texture = Self::upload_font_texture(self.format, ctx.fonts().build_rgba32_texture(), vk.allocators.memory.clone(), vk.clone()); 
         self.font_texture = upload_font_texture;
     }
     
@@ -309,6 +311,7 @@ impl ImRenderer {
     }
 
     fn upload_font_texture(
+        format: Format,
         fonts: imgui::FontAtlasTexture,
         allocator: Arc<dyn MemoryAllocator>,
         vk: Arc<Vk>,
@@ -317,9 +320,9 @@ impl ImRenderer {
             allocator.clone(),
             ImageCreateInfo {
                 image_type: ImageType::Dim2d,
-                format: Format::R8G8B8A8_SRGB,
+                format: format,
                 extent: [fonts.width, fonts.height, 1],
-                usage: ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_DST,
+                usage: ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST,
                 ..Default::default()
             },
             AllocationCreateInfo {
@@ -356,7 +359,7 @@ impl ImRenderer {
         return Some(ImageView::new(
             self.font_texture.clone(), 
             ImageViewCreateInfo { 
-                format: Format::R8G8B8A8_SRGB, 
+                format: self.format, 
                 usage: ImageUsage::SAMPLED,
                 subresource_range: ImageSubresourceRange {
                     mip_levels: 0..1,
