@@ -244,15 +244,13 @@ pub fn windowing() {
         let mesh = Mesh::new(&vertices, &indices, &renderer);
         
         
-        renderer.meshes.push(
+        renderer.meshes.insert(
+            0,
             mesh
         );
     }
 
     let mut imgui = ImGui::new(&mut el.window, &renderer.presenter, renderer.vk.clone());
-
-    let im_renderer = ImRenderer::new(&mut imgui.ctx, renderer.vk.clone(), Format::R8G8B8A8_SRGB)
-        .unwrap();
 
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
@@ -262,22 +260,22 @@ pub fn windowing() {
         renderer.camera.mouse_callback(el.event_handler.mouse_pos, &el.window);
         renderer.camera.update(renderer.camera.pos, &el);
         
-        // let ui = imgui.frame(&mut el.window);
-        // ui.text("HI!");
+        let ui = imgui.frame(&mut el.window);
+        ui.text("hello world");
 
-        // ui.show_demo_window(&mut true);
+        ui.show_demo_window(&mut true);
 
-        // imgui.draw(&mut renderer);
+        imgui.draw(&mut renderer);
+        
+        let now = std::time::Instant::now();
+        renderer.update(&mut el);
+        let elapsed = now.elapsed().as_secs_f32() * 1000.0;
 
         if el.is_key_down(glfw::Key::LeftAlt) {
             el.window.set_cursor_mode(glfw::CursorMode::Normal);
         } else {
             el.window.set_cursor_mode(glfw::CursorMode::Disabled);
         }
-        
-        let now = std::time::Instant::now();
-        renderer.update(&mut el);
-        let elapsed = now.elapsed().as_secs_f32() * 1000.0;
 
         if cfg!(debug_assertions) {
             dbg!(elapsed);

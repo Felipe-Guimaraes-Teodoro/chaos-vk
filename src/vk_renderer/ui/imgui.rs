@@ -5,7 +5,7 @@ use imgui::{Context, DrawData, Ui};
 use vulkano::command_buffer::{CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo};
 use vulkano::render_pass::Framebuffer;
 
-use super::super::{presenter::Presenter, Vk, renderer::Renderer, command::VkBuilder, shaders::graphics_pipeline::framebuffers};
+use super::super::{presenter::Presenter, Vk, renderer::Renderer, command::VkBuilder, shaders::{graphics_pipeline::framebuffers, renderpass::VkSecRenderpass}};
 use super::renderer::{self, ImRenderer};
 
 pub struct ImGui {
@@ -106,13 +106,21 @@ impl ImGui {
 
             self.renderer.draw_commands(
                 &mut builder, 
-                renderer.presenter.framebuffers.clone(), 
-                draw_data, 
+                framebuffer.clone(), 
+                draw_data,
                 renderer.vk.clone()
             );
 
-            renderer.sec_cmd_bufs.push(
-                builder.build().unwrap(),
+            let cmd_buf = builder.build().unwrap();
+
+            let pass = VkSecRenderpass {
+                cmd_buf,
+                framebuffer,
+                rp: self.renderer.render_pass.clone(),
+            };
+
+            renderer.sec_renderpasses.push(
+                pass,
             );
         }
     }

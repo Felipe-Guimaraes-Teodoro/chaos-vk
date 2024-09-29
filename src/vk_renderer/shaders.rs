@@ -98,7 +98,7 @@ pub mod graphics_pipeline {
                         None => Format::R8G8B8A8_UNORM,
                     },
                     samples: 1,
-                    load_op: Clear,
+                    load_op: Clear, /* Clear */
                     store_op: Store,
                 },
 
@@ -278,6 +278,20 @@ pub mod graphics_pipeline {
 
 }
 
+pub mod renderpass {
+    use std::sync::Arc;
+
+    use vulkano::render_pass::{Framebuffer, RenderPass};
+
+    use super::super::command::SecondaryCmdBufType;
+
+    pub struct VkSecRenderpass {
+        pub cmd_buf: SecondaryCmdBufType,
+        pub framebuffer: Arc<Framebuffer>,
+        pub rp: Arc<RenderPass>,
+    }
+}
+
 pub mod vertex_shader {
     vulkano_shaders::shader!{
         ty: "vertex",
@@ -315,7 +329,7 @@ pub mod fragment_shader {
 
             layout(location = 1) in vec3 in_col;
             layout(location = 2) in vec3 in_norm;
-
+            
             layout(location = 0) out vec4 f_color;
 
             layout(set = 0, binding = 1) uniform UniformBuffer {
@@ -354,7 +368,7 @@ pub mod mandelbrot_shader {
                 vec2 uv = (gl_GlobalInvocationID.xy + vec2(0.5)) / vec2(imageSize(img));
 
                 vec2 c = (uv - vec2(0.5)) * 2.0 - vec2(1.0, 0.0);
-
+                
                 vec2 z = vec2(0.0, 0.0);
                 float i;
                 float iterations = 64;

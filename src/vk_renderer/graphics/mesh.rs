@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec3};
-use vulkano::{buffer::BufferContents, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}};
+use vulkano::{buffer::BufferContents, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, device::Device, render_pass::Framebuffer};
+
+use super::super::{command::{CommandBufferType, VkBuilder}, pipeline::VkGraphicsPipeline};
 
 use super::super::{shaders::graphics_pipeline, buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex, vk::Vk};
 
@@ -40,6 +42,7 @@ pub struct Mesh {
 
     pub vbo: VkIterBuffer<Vertex>,
     pub ebo: VkIterBuffer<u32>,
+    pub cmd: Option<CommandBufferType>
 }
 
 impl Mesh {
@@ -55,12 +58,34 @@ impl Mesh {
 
             vbo: VkIterBuffer::vertex(renderer.vk.allocators.clone(), vertices.to_vec()),
             ebo: VkIterBuffer::index(renderer.vk.allocators.clone(), indices.to_vec()),
+            cmd: None,
         }
     }
 
     pub fn rebuild(&mut self, vk: Arc<Vk>) {
         self.vbo = VkIterBuffer::vertex(vk.allocators.clone(), self.vertices.to_vec());
         self.ebo = VkIterBuffer::index(vk.allocators.clone(), self.indices.to_vec());
+    }
+
+    /* TODO: this as a sec cmd buf */
+    pub fn record_command_buffer(&mut self, pipeline: &VkGraphicsPipeline, vk: Arc<Vk>) {
+        if self.cmd.is_some() {
+            return;
+        }
+
+        let mut builder = VkBuilder::new_multiple(vk.clone());
+
+        builder.0
+            .bind_pipeline_graphics(pipeline.graphics_pipeline.clone())
+            .unwrap()
+            .bind_vertex_buffers(0, self.vbo.content.clone())
+            .unwrap()
+            .bind_index_buffer(self.ebo.content.clone())
+            .unwrap()
+            .draw_indexed(self.ebo.content.len() as u32, 1, 0, 0, 0)
+            .unwrap();
+
+        self.cmd = Some(builder.command_buffer());
     }
 
     pub fn get_model(&self) -> [[f32; 4]; 4] {

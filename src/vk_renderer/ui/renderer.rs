@@ -141,7 +141,7 @@ impl ImRenderer {
         })
     }
 
-    pub fn draw_commands(&mut self, cmd_buf_builder: &mut SecBuilderType, framebuffers: Vec<Arc<Framebuffer>>, draw_data: &imgui::DrawData, vk: Arc<Vk>) {
+    pub fn draw_commands(&mut self, cmd_buf_builder: &mut SecBuilderType, framebuffer: Arc<Framebuffer>, draw_data: &imgui::DrawData, vk: Arc<Vk>) {
         let fb_width = draw_data.display_size[0] * draw_data.framebuffer_scale[0];
         let fb_height = draw_data.display_size[1] * draw_data.framebuffer_scale[1];
         if !(fb_width > 0.0 && fb_height > 0.0) {
@@ -167,7 +167,7 @@ impl ImRenderer {
             ]
         };
 
-        let _dims = framebuffers[0].attachments()[0].image().extent();
+        let dims = framebuffer.attachments()[0].image().extent();
 
         let clip_off = draw_data.display_pos;
         let clip_scale = draw_data.framebuffer_scale;
@@ -191,10 +191,11 @@ impl ImRenderer {
         cmd_buf_builder
             .set_viewport_with_count(smallvec![Viewport {
                 offset: [0.0, 0.0],
-                extent: [100.0, 100.0],
+                extent: [dims[0] as f32, dims[1] as f32],
                 depth_range: 0.0..=1.0,
             }])
             .unwrap();
+
         for draw_list in draw_data.draw_lists() {
             for cmd in draw_list.commands() {
                 match cmd {
@@ -235,7 +236,7 @@ impl ImRenderer {
 
                         cmd_buf_builder
                             .set_scissor_with_count(smallvec![Scissor { 
-                                offset: [0, 0],
+                                offset: scissor_offset,
                                 extent: scissor_extent
                             }])
                             .unwrap();
@@ -247,6 +248,7 @@ impl ImRenderer {
                             .collect::<Vec<ImVertex>>();
 
                         let indices = draw_list.idx_buffer();
+                        let indices_slice = &indices[idx_offset..(idx_offset + count)];
 
                         let vrt_buffer = VkIterBuffer::vertex(
                             vk.allocators.clone(), 
@@ -255,7 +257,7 @@ impl ImRenderer {
 
                         let idx_buffer = VkIterBuffer::index(
                             vk.allocators.clone(), 
-                            indices.to_vec()
+                            indices_slice.to_vec()
                         );
 
                         cmd_buf_builder
@@ -276,15 +278,13 @@ impl ImRenderer {
                                 count as u32, 
                                 1, 
                                 0, 
-                                vtx_offset as i32, 
+                                0, 
                                 0
                             )
                             .unwrap();
 
                     },
-                    DrawCmd::ResetRenderState => {
-                        ()
-                    },
+                    DrawCmd::ResetRenderState => { () },
                     DrawCmd::RawCallback { callback, raw_cmd } => unsafe {
                         callback(draw_list.raw(), raw_cmd);
                     },
