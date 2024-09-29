@@ -1,11 +1,10 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{collections::HashMap, sync::Arc};
 
-use imgui::{Context, DrawData};
-use vulkano::{buffer::IndexBuffer, command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SecondaryAutoCommandBuffer, SubpassBeginInfo, SubpassContents}, descriptor_set::PersistentDescriptorSet, pipeline::Pipeline, render_pass::{Framebuffer, Subpass}};
+use vulkano::{buffer::IndexBuffer, command_buffer::{RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, pipeline::Pipeline, render_pass::Framebuffer};
 
 use crate::vk_renderer::Vk;
 
-use super::{command::{BuilderType, CommandBufferType, SecondaryCmdBufType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter, shaders::renderpass::VkSecRenderpass, ui::renderer::ImRenderer};
+use super::{command::{CommandBufferType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter, shaders::renderpass::VkSecRenderpass};
 
 pub struct Renderer {
     pub vk: Arc<Vk>,

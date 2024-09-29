@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec3};
-use vulkano::{buffer::BufferContents, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, device::Device, render_pass::Framebuffer};
+use vulkano::{buffer::BufferContents, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}};
 
 use super::super::{command::{CommandBufferType, VkBuilder}, pipeline::VkGraphicsPipeline};
-
 use super::super::{shaders::graphics_pipeline, buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex, vk::Vk};
 
 type Mat = [[f32;4];4];

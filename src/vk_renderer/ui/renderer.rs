@@ -205,8 +205,8 @@ impl ImRenderer {
                         count, 
                         cmd_params: DrawCmdParams {
                             clip_rect,
-                            texture_id,
-                            vtx_offset,
+                            texture_id: _,
+                            vtx_offset: _,
                             idx_offset,
                         }
                     } => {
@@ -226,7 +226,7 @@ impl ImRenderer {
                             (clip_rect[3] - clip_rect[1]) as u32,
                         ];
 
-                        let tex = self.lookup_texture(texture_id);
+                        let tex = self.lookup_texture();
                         let sampler = self.get_sampler(vk.clone());
 
                         let set = descriptor_set(
@@ -355,7 +355,7 @@ impl ImRenderer {
         image
     }
 
-    fn lookup_texture(&self, texture_id: TextureId) -> Option<Arc<ImageView>> {
+    fn lookup_texture(&self) -> Option<Arc<ImageView>> {
         return Some(ImageView::new(
             self.font_texture.clone(), 
             ImageViewCreateInfo { 

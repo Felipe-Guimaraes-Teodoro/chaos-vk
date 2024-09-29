@@ -2,7 +2,7 @@ use crate::vk_renderer::buffer::VkIterBuffer;
 use crate::vk_renderer::command::{submit_cmd_buf, VkBuilder};
 use crate::vk_renderer::pipeline::VkComputePipeline;
 use crate::vk_renderer::shaders::mandelbrot_shader;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
@@ -14,17 +14,14 @@ use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 
-use crate::vk_renderer::Vk;
-
 use super::events::event_loop::EventLoop;
 use super::geometry::fundamental::sphere;
 use super::graphics::mesh::Mesh;
 use super::pipeline::VkGraphicsPipeline;
 use super::renderer::Renderer;
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
-use super::ui::imgui::ImGui;
-use super::ui::renderer::ImRenderer;
 use super::vertex::Vertex;
+use super::Vk;
 
 pub fn test() {
     //let vk = Arc::new(Vk::new(None));

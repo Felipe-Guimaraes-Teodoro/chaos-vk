@@ -168,7 +168,6 @@ pub mod graphics_pipeline {
     }
 
     pub fn framebuffers(
-        vk: Arc<Vk>,
         rp: Arc<RenderPass>, 
         images: &Vec<Arc<Image>>
     ) -> Vec<Arc<Framebuffer>> {

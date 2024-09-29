@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 pub mod vk;
 pub mod buffer;
 pub mod command;
@@ -14,3 +16,6 @@ pub mod events;
 pub mod ui;
 
 pub use vk::*;
+pub use geometry::*;
+pub use graphics::*;
+pub use ui::*;

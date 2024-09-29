@@ -1,12 +1,9 @@
-use std::sync::{Arc, Mutex};
-
 use glfw::Window;
-use imgui::{Context, DrawData, Ui};
+use imgui::{Context, Ui};
 use vulkano::command_buffer::{CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo};
-use vulkano::render_pass::Framebuffer;
 
-use super::super::{presenter::Presenter, Vk, renderer::Renderer, command::VkBuilder, shaders::{graphics_pipeline::framebuffers, renderpass::VkSecRenderpass}};
-use super::renderer::{self, ImRenderer};
+use super::super::{renderer::Renderer, command::VkBuilder, shaders::{graphics_pipeline::framebuffers, renderpass::VkSecRenderpass}};
+use super::renderer::ImRenderer;
 
 pub struct ImGui {
     last_frame: f64,
@@ -90,7 +87,6 @@ impl ImGui {
     pub fn draw(&mut self, renderer: &mut Renderer) {
         if let Some(im_renderer) = &mut self.renderer {
             let framebuffers = framebuffers(
-                renderer.vk.clone(), 
                 im_renderer.render_pass.clone(), 
                 &renderer.presenter.images
             );

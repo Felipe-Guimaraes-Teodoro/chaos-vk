@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture, CommandBufferInheritanceInfo, CommandBufferUsage, PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer}, render_pass::Framebuffer, sync::{self, future::{FenceSignalFuture, NowFuture}, GpuFuture}};
+use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture, CommandBufferInheritanceInfo, CommandBufferUsage, PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer}, sync::{self, future::{FenceSignalFuture, NowFuture}, GpuFuture}};
 
-use super::{pipeline::VkGraphicsPipeline, renderer::Renderer, Vk};
+use super::{renderer::Renderer, Vk};
 
 pub struct VkBuilder(
     pub AutoCommandBufferBuilder<
