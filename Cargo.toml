@@ -2,6 +2,11 @@
 name = "chaos-vk"
 version = "0.1.0"
 edition = "2021"
+authors = ["Felipe <felipeguimaraesteodoro@gmail.com>"]
+license = "MIT OR Apache-2.0"
+keywords = ["graphics", "glfw", "vulkan"]
+description = "Graphics framework tuned for chaos framework"
+repository = "https://github.com/Felipe-Guimaraes-Teodoro/chaos-vk"
 
 [dependencies]
 ahash = "0.8.11"
