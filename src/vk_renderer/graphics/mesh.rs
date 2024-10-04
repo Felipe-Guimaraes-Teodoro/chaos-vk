@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec3};
-use vulkano::{buffer::BufferContents, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}};
+use vulkano::{buffer::BufferContents, command_buffer::{CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo, CommandBufferInheritanceRenderPassType}, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::Pipeline, query::QueryPipelineStatisticFlags, render_pass::Framebuffer};
 
-use super::super::{command::{CommandBufferType, VkBuilder}, pipeline::VkGraphicsPipeline};
-use super::super::{shaders::graphics_pipeline, buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex, vk::Vk};
+use super::{super::{command::{CommandBufferType, SecondaryCmdBufType, VkBuilder}, pipeline::VkGraphicsPipeline}, camera::Camera};
+use super::super::{shaders::graphics_pipeline, buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex, vk::Vk, presenter::FRAMES_IN_FLIGHT};
 
 type Mat = [[f32;4];4];
 
@@ -18,14 +18,14 @@ pub struct UniformBuffer {
 }
 
 impl UniformBuffer {
-    pub fn create(renderer: &Renderer, model: Mat, view: Mat, proj: Mat) -> VkBuffer<UniformBuffer> {
+    pub fn create(vk: Arc<Vk>, model: Mat, view: Mat, proj: Mat) -> VkBuffer<UniformBuffer> {
         let data = UniformBuffer {
             model,
             view,
             proj,
         };
         
-        VkBuffer::uniform(renderer.vk.allocators.clone(), data)
+        VkBuffer::uniform(vk.allocators.clone(), data)
     }
 }
 
@@ -41,7 +41,7 @@ pub struct Mesh {
 
     pub vbo: VkIterBuffer<Vertex>,
     pub ebo: VkIterBuffer<u32>,
-    pub cmd: Option<CommandBufferType>
+    pub cmds: Vec<Option<SecondaryCmdBufType>>,
 }
 
 impl Mesh {
@@ -57,7 +57,7 @@ impl Mesh {
 
             vbo: VkIterBuffer::vertex(renderer.vk.allocators.clone(), vertices.to_vec()),
             ebo: VkIterBuffer::index(renderer.vk.allocators.clone(), indices.to_vec()),
-            cmd: None,
+            cmds: vec![None; *FRAMES_IN_FLIGHT],
         }
     }
 
@@ -67,15 +67,25 @@ impl Mesh {
     }
 
     /* TODO: this as a sec cmd buf */
-    pub fn record_command_buffer(&mut self, pipeline: &VkGraphicsPipeline, vk: Arc<Vk>) {
-        if self.cmd.is_some() {
-            return;
-        }
+    pub fn record_command_buffer(
+        &mut self, 
+        pipeline: &VkGraphicsPipeline, 
+        framebuffer: Arc<Framebuffer>, 
+        vk: Arc<Vk>,
+        camera: &Camera,
+        i: usize
+    ) {
+        let mut builder = VkBuilder::secondary_from_renderpass(vk.clone(), pipeline, framebuffer.clone());
 
-        let mut builder = VkBuilder::new_multiple(vk.clone());
-
-        builder.0
+        builder
             .bind_pipeline_graphics(pipeline.graphics_pipeline.clone())
+            .unwrap()
+            .bind_descriptor_sets(
+                vulkano::pipeline::PipelineBindPoint::Graphics, 
+                pipeline.graphics_pipeline.layout().clone(), 
+                0, 
+                self.get_desc_set(vk.clone(), camera, pipeline).0
+            )
             .unwrap()
             .bind_vertex_buffers(0, self.vbo.content.clone())
             .unwrap()
@@ -83,8 +93,8 @@ impl Mesh {
             .unwrap()
             .draw_indexed(self.ebo.content.len() as u32, 1, 0, 0, 0)
             .unwrap();
-
-        self.cmd = Some(builder.command_buffer());
+            
+        self.cmds[i] = Some(builder.build().unwrap());
     }
 
     pub fn get_model(&self) -> [[f32; 4]; 4] {
@@ -96,18 +106,18 @@ impl Mesh {
         model_matrix.to_cols_array_2d()
     }
 
-    pub fn get_desc_set(&self, renderer: &Renderer) -> (Arc<PersistentDescriptorSet>, usize) {
+    pub fn get_desc_set(&self, vk: Arc<Vk>, camera: &Camera, pipeline: &VkGraphicsPipeline) -> (Arc<PersistentDescriptorSet>, usize) {
         let ubo = UniformBuffer::create(
-            renderer, 
+            vk.clone(),
             self.get_model(),
-            renderer.camera.get_view(),
-            renderer.camera.get_proj()
+            camera.get_view(),
+            camera.get_proj()
         );
 
         graphics_pipeline::descriptor_set(
-            renderer.vk.clone(), 
+            vk.clone(), 
             0,
-            renderer.presenter.pipelines[0].graphics_pipeline.clone(), 
+            pipeline.graphics_pipeline.clone(), 
             [WriteDescriptorSet::buffer(1, ubo._content)]
         )
     }

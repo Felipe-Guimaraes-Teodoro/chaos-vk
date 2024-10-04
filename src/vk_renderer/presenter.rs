@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use vulkano::{command_buffer::CommandBufferExecFuture, image::Image, render_pass::Framebuffer, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{self, future::{FenceSignalFuture, JoinFuture}, GpuFuture}, Validated, VulkanError};
 
@@ -18,7 +18,13 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
 
     pub fences: Vec<Option<Fence>>,
     pub prev_fence_i: u32,
+
+    pub image_i: usize,
  }
+
+ pub static FRAMES_IN_FLIGHT: LazyLock<usize> = LazyLock::new( || {
+    3
+ });
 
  impl Presenter {
     pub fn new(vk: Arc<Vk>, el: &EventLoop) -> Self {
@@ -42,6 +48,9 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         );
     
         let frames_in_flight = images.len();
+
+        assert_eq!(*FRAMES_IN_FLIGHT, frames_in_flight); /* TODO: handle this case (if it can happen) */
+
         let fences: Vec<Option<Arc<FenceSignalFuture<_>>>> = vec![None; frames_in_flight];
         let prev_fence_i = 0;
 
@@ -56,6 +65,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
             window_resized: false,
             fences,
             prev_fence_i,
+            image_i: 0,
         }
     }
 
@@ -152,7 +162,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                 None
             }
         };
-
+        
         self.prev_fence_i = image_i;
     }
  }

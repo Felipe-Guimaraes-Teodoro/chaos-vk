@@ -29,6 +29,8 @@ impl EventLoop {
         let (mut window, events) = glfw.create_window(w, h, "Hello this is window", glfw::WindowMode::Windowed)
             .expect("Failed to create GLFW window.");
 
+        window.set_resizable(false);
+
         window.make_current();
         window.set_key_polling(true);
         window.set_cursor_pos_polling(true);
@@ -116,6 +118,9 @@ impl EventLoop {
                 }
 
                 glfw::WindowEvent::FramebufferSize(w, h) => {
+                    self.ui.ctx.io_mut().display_size = [
+                        w as f32, h as f32
+                    ];
                     self.event_handler.on_window_resize(w, h);
                     renderer.presenter.window_resized = true;
                 }

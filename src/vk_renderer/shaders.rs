@@ -280,7 +280,7 @@ pub mod graphics_pipeline {
 pub mod renderpass {
     use std::sync::Arc;
 
-    use vulkano::render_pass::{Framebuffer, RenderPass};
+    use vulkano::{format::ClearValue, render_pass::{Framebuffer, RenderPass}};
 
     use super::super::command::SecondaryCmdBufType;
 
@@ -288,6 +288,7 @@ pub mod renderpass {
         pub cmd_buf: SecondaryCmdBufType,
         pub framebuffer: Arc<Framebuffer>,
         pub rp: Arc<RenderPass>,
+        pub clear_values: Vec<Option<ClearValue>>,
     }
 }
 

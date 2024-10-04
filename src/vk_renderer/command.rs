@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture, CommandBufferInheritanceInfo, CommandBufferUsage, PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer}, sync::{self, future::{FenceSignalFuture, NowFuture}, GpuFuture}};
+use vulkano::{command_buffer::{allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture, CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo, CommandBufferInheritanceRenderPassType, CommandBufferUsage, PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer}, render_pass::Framebuffer, sync::{self, future::{FenceSignalFuture, NowFuture}, GpuFuture}};
 
-use super::{renderer::Renderer, Vk};
+use super::{pipeline::VkGraphicsPipeline, renderer::Renderer, Vk};
 
 pub struct VkBuilder(
     pub AutoCommandBufferBuilder<
@@ -57,6 +57,18 @@ impl VkBuilder {
         .unwrap();
     
         builder
+    }
+
+    pub fn secondary_from_renderpass(vk: Arc<Vk>, pipeline: &VkGraphicsPipeline, framebuffer: Arc<Framebuffer>) -> SecBuilderType {
+        VkBuilder::new_secondary(vk.clone(), Some(CommandBufferInheritanceInfo {
+            render_pass: Some(
+                CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
+                    subpass: pipeline.subpass.clone(),
+                    framebuffer: Some(framebuffer.clone()),
+                })
+            ),
+            ..Default::default()
+        }))
     }
 
     pub fn command_buffer(self) -> CommandBufferType 

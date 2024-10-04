@@ -121,6 +121,7 @@ impl ImGui {
                     cmd_buf,
                     framebuffer: framebuffer.clone(),
                     rp: im_renderer.render_pass.clone(),
+                    clear_values: vec![None],
                 };
     
                 renderer.sec_renderpasses.push(

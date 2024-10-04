@@ -12,7 +12,7 @@ repository = "https://github.com/Felipe-Guimaraes-Teodoro/chaos-vk"
 ahash = "0.8.11"
 bytemuck = "1.16.3"
 glam = "0.29.0"
-glfw = { version = "0.56.0", features = ["vulkan"] }
+glfw = { version = "0.56.0", features = ["raw-window-handle-v0-6", "vulkan"] }
 image = "0.25.2"
 imgui = "0.12.0"
 rayon = "1.10.0"
