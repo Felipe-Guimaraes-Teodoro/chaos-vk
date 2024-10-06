@@ -7,6 +7,12 @@ use crate::vk_renderer::Vk;
 
 use super::{command::{CommandBufferType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter, shaders::renderpass::VkSecRenderpass};
 
+/*
+    meshes: HashMap<MeshHandle, Mesh>
+    pipelines: HashMap<PipelineHandle, Pipeline>
+
+    Mesh: add a field -> +pipeline: PipelineHandle
+*/
 pub struct Renderer {
     pub vk: Arc<Vk>,
     pub presenter: Presenter,
@@ -75,13 +81,13 @@ impl Renderer {
         cmd_bufs 
     }
 
-    pub fn update(&mut self, el: &mut EventLoop) {
+    pub fn draw(&mut self) {
         // self.presenter.recreate_swapchain = true;
         let cmd_bufs = self.get_command_buffers(
             self.presenter.framebuffers.clone(),
         );
         self.presenter.cmd_bufs = cmd_bufs;
-        self.presenter.update(self.vk.clone(), el);
+        self.presenter.present(self.vk.clone());
     }
 
     pub fn append_sec_renderpasses_to_builder(&mut self, builder: &mut VkBuilder) {
@@ -134,7 +140,6 @@ impl Renderer {
             /* 
             if let Some(cmd) = &mesh.cmds[frame_i] { 
                 /* check  framebuffer! */
-                dbg!("i'm tryna draw something");
                 builder.0
                     .execute_commands(cmd.clone())
                     .unwrap();

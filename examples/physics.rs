@@ -140,7 +140,7 @@ fn main() {
         }
 
 
-        renderer.update(&mut el);
+        renderer.draw(&mut el);
     }
 }
 

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
+use imgui::ImColor32;
 use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::format::Format;
@@ -242,7 +243,6 @@ pub fn windowing() {
 
         let mesh = Mesh::new(&vertices, &indices, &renderer);
         
-        
         renderer.meshes.insert(
             0,
             mesh
@@ -251,6 +251,7 @@ pub fn windowing() {
 
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
+    let mut elapsed = 0.0;
     while !el.window.should_close() {
         el.update(&mut renderer);
         renderer.camera.input(&el);
@@ -258,24 +259,32 @@ pub fn windowing() {
         renderer.camera.update(renderer.camera.pos, &el);
         
         let ui = el.ui.frame(&mut el.window);
-        ui.text("hello world");
+        {
+            let dl = ui.get_foreground_draw_list();
+            dl.add_rect([20.0, 20.0], [160.0, 40.0], ImColor32::BLACK)
+                .rounding(4.5)
+                .filled(true)
+                .build();
 
-        ui.show_demo_window(&mut true);
+            dl.add_text([24.0, 24.0], ImColor32::WHITE, format!("f: {:.1} | e: {:.1}", 1.0/(elapsed/1000.0), elapsed));
+            
+            dl.add_circle([10.0, 30.0], 5.0, ImColor32::from_rgb(255, 0, 0))
+                .filled(true)
+                .build();
+            
+        }
 
         el.ui.draw(&mut renderer);
         
         let now = std::time::Instant::now();
-        renderer.update(&mut el);
-        let elapsed = now.elapsed().as_secs_f32() * 1000.0;
+        renderer.draw();
+        elapsed = now.elapsed().as_secs_f32() * 1000.0;
+        renderer.presenter.recreate(renderer.vk.clone(), &el);
 
         if el.is_key_down(glfw::Key::LeftAlt) {
             el.window.set_cursor_mode(glfw::CursorMode::Normal);
         } else {
             el.window.set_cursor_mode(glfw::CursorMode::Disabled);
-        }
-
-        if cfg!(debug_assertions) {
-            dbg!(elapsed);
         }
     }
 }

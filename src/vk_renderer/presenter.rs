@@ -69,11 +69,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         }
     }
 
-    pub fn update(
-        &mut self, 
-        vk: Arc<Vk>, 
-        el: &EventLoop,
-    ) {
+    pub fn recreate(&mut self, vk: Arc<Vk>, el: &EventLoop) {
         if self.window_resized || self.recreate_swapchain {
             self.recreate_swapchain = false;
 
@@ -111,7 +107,12 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                 }
             }
         }
-        
+    }
+
+    pub fn present(
+        &mut self, 
+        vk: Arc<Vk>,
+    ) { 
         let (image_i, suboptimal, acquire_future) =
             match swapchain::acquire_next_image(self.swapchain.clone(), None)
                 .map_err(Validated::unwrap)
