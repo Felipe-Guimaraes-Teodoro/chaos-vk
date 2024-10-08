@@ -142,7 +142,7 @@ pub mod graphics_pipeline {
                 ImageCreateInfo {
                     format: Format::D16_UNORM,
                     extent: images[0].extent(),
-                    usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT,
+                    usage: ImageUsage::DEPTH_STENCIL_ATTACHMENT | ImageUsage::TRANSFER_SRC,
                     ..Default::default()
                 }, 
                 AllocationCreateInfo::default(),

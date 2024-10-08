@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::{graphics::viewport::Viewport, layout::PipelineDescriptorSetLayoutCreateInfo, ComputePipeline, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::{RenderPass, Subpass}, shader::ShaderModule, swapchain::Swapchain};
 
-use super::{command::{submit_cmd_buf, VkBuilder}, shaders::{compute_pipeline, graphics_pipeline}, Vk};
+use super::{command::{submit_cmd_buf, VkBuilder}, renderer::Renderer, shaders::{compute_pipeline, graphics_pipeline}, Vk};
 
 #[derive(Clone)]
 pub struct VkGraphicsPipeline {
@@ -18,6 +18,22 @@ pub struct VkGraphicsPipeline {
     pub pipeline_layout: Arc<dyn Fn() -> Arc<PipelineLayout>>,
 
     pub viewport: Viewport,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub struct PipelineHandle {
+    pub id: usize,
+}
+
+impl Renderer {
+    pub fn add_pipeline(&mut self, pipeline: VkGraphicsPipeline) {
+        let idx = self.pipelines.len()-1;
+        let handle = PipelineHandle {
+            id: idx,
+        };
+
+        self.pipelines.insert(handle, pipeline);
+    }
 }
 
 impl VkGraphicsPipeline {

@@ -1,15 +1,14 @@
-use std::sync::{Arc, LazyLock};
+use std::{collections::HashMap, sync::{Arc, LazyLock}};
 
 use vulkano::{command_buffer::CommandBufferExecFuture, image::Image, render_pass::Framebuffer, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{self, future::{FenceSignalFuture, JoinFuture}, GpuFuture}, Validated, VulkanError};
 
-use super::{command::CommandBufferType, events::event_loop::EventLoop, pipeline::VkGraphicsPipeline, shaders::{fragment_shader, graphics_pipeline::{framebuffers_with_depth, render_pass}, vertex_shader}, swapchain, Vk};
+use super::{command::CommandBufferType, events::event_loop::EventLoop, pipeline::{PipelineHandle, VkGraphicsPipeline}, shaders::{fragment_shader, graphics_pipeline::{framebuffers_with_depth, render_pass}, vertex_shader}, swapchain, Vk};
 
 type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFuture<Box<dyn GpuFuture>, SwapchainAcquireFuture>>>>>;
 
  pub struct Presenter {
     pub swapchain: Arc<Swapchain>,
     pub images: Vec<Arc<Image>>,
-    pub pipelines: Vec<VkGraphicsPipeline>,
     pub framebuffers: Vec<Arc<Framebuffer>>,
     pub cmd_bufs: Vec<CommandBufferType>,
 
@@ -30,17 +29,6 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
     pub fn new(vk: Arc<Vk>, el: &EventLoop) -> Self {
         let (swapchain, images) = swapchain(vk.clone(), el);
 
-        let vs = vertex_shader::load(vk.device.clone()).unwrap();
-        let fs = fragment_shader::load(vk.device.clone()).unwrap();
-
-        let pipelines = vec![VkGraphicsPipeline::new(
-            vk.clone(), 
-            vs.clone(),
-            fs.clone(),
-            VkGraphicsPipeline::default_layout(vk.clone(), vs.clone(), fs.clone()),
-            Some(swapchain.clone())
-        )];
-
         let framebuffers = framebuffers_with_depth(
             vk.clone(),
             render_pass( vk.clone(), Some(swapchain.clone()) ),
@@ -57,7 +45,6 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         Self {
             swapchain,
             images,
-            pipelines,
             framebuffers,        
             cmd_bufs: vec![],
 
@@ -69,7 +56,7 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         }
     }
 
-    pub fn recreate(&mut self, vk: Arc<Vk>, el: &EventLoop) {
+    pub fn recreate(&mut self, vk: Arc<Vk>, el: &EventLoop, pipelines: &mut HashMap<PipelineHandle, VkGraphicsPipeline>) {
         if self.window_resized || self.recreate_swapchain {
             self.recreate_swapchain = false;
 
@@ -90,11 +77,11 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
 
                 self.framebuffers = framebuffers_with_depth(
                     vk.clone(),
-                    self.pipelines[0].render_pass.clone(),
+                    pipelines[&PipelineHandle { id: 0 }].render_pass.clone(),
                     &self.images,
                 );
                 
-                for pipeline in &mut self.pipelines {
+                for pipeline in pipelines.values_mut() {
                     pipeline.viewport.extent = [new_w, new_h];
                     pipeline.graphics_pipeline = crate::vk_renderer::shaders::graphics_pipeline::graphics_pipeline(
                         vk.clone(),

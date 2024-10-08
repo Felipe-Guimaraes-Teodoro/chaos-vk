@@ -5,17 +5,12 @@ use vulkano::{buffer::IndexBuffer, command_buffer::{RenderPassBeginInfo, Subpass
 
 use crate::vk_renderer::Vk;
 
-use super::{command::{CommandBufferType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::VkGraphicsPipeline, presenter::Presenter, shaders::renderpass::VkSecRenderpass};
+use super::{command::{CommandBufferType, VkBuilder}, events::event_loop::EventLoop, graphics::{camera::Camera, mesh::Mesh}, pipeline::{PipelineHandle, VkGraphicsPipeline}, presenter::Presenter, shaders::{fragment_shader, renderpass::VkSecRenderpass, vertex_shader}};
 
-/*
-    meshes: HashMap<MeshHandle, Mesh>
-    pipelines: HashMap<PipelineHandle, Pipeline>
-
-    Mesh: add a field -> +pipeline: PipelineHandle
-*/
 pub struct Renderer {
     pub vk: Arc<Vk>,
     pub presenter: Presenter,
+    pub pipelines: HashMap<PipelineHandle, VkGraphicsPipeline>,
     pub camera: Camera,
     pub meshes: HashMap<usize, Mesh>,
 
@@ -31,9 +26,25 @@ impl Renderer {
         
         let presenter = Presenter::new(vk.clone(), el);
 
+        let default_vs = vertex_shader::load(vk.device.clone()).unwrap();
+        let default_fs = fragment_shader::load(vk.device.clone()).unwrap();
+
+        let default_pipeline = VkGraphicsPipeline::new(
+            vk.clone(), 
+            default_vs.clone(),
+            default_fs.clone(),
+            VkGraphicsPipeline::default_layout(vk.clone(), default_vs.clone(), default_fs.clone()),
+            Some(presenter.swapchain.clone())
+        );
+
+        let mut pipelines = HashMap::new();
+
+        pipelines.insert(PipelineHandle{id: 0}, default_pipeline);
+
         Self {
             vk,
             presenter,
+            pipelines,
             camera,
             meshes: HashMap::new(),
             sec_renderpasses: vec![],
@@ -157,7 +168,7 @@ impl Renderer {
             */
             
             mesh.record_command_buffer(
-                &self.presenter.pipelines[0].clone(), /* this could be a member of the mesh struct */
+                &self.pipelines,
                 framebuffer.clone(),
                 self.vk.clone(),
                 &self.camera,

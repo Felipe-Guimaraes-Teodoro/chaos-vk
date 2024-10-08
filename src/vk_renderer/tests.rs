@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use glam::vec3;
 use image::{ImageBuffer, Rgba};
-use imgui::ImColor32;
+use imgui::{ImColor32, TextureId};
 use vulkano::command_buffer::{CopyImageToBufferInfo, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
 use vulkano::descriptor_set::WriteDescriptorSet;
 use vulkano::format::Format;
@@ -18,7 +18,7 @@ use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use super::events::event_loop::EventLoop;
 use super::geometry::fundamental::sphere;
 use super::graphics::mesh::Mesh;
-use super::pipeline::VkGraphicsPipeline;
+use super::pipeline::{PipelineHandle, VkGraphicsPipeline};
 use super::renderer::Renderer;
 use super::shaders::{fragment_shader, graphics_pipeline, vertex_shader};
 use super::vertex::Vertex;
@@ -252,6 +252,13 @@ pub fn windowing() {
     el.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
     let mut elapsed = 0.0;
+    let (mut y, mut x) = (0.0, 0.0);
+
+    let dst = VkIterBuffer::transfer_src_dst(
+        renderer.vk.allocators.clone(), 
+        (0..1200*900*4).map(|_| 0u16),
+    );
+    
     while !el.window.should_close() {
         el.update(&mut renderer);
         renderer.camera.input(&el);
@@ -259,6 +266,10 @@ pub fn windowing() {
         renderer.camera.update(renderer.camera.pos, &el);
         
         let ui = el.ui.frame(&mut el.window);
+
+        y += el.event_handler.scroll.y * 20.0;
+        x += el.event_handler.scroll.x * 20.0;
+
         {
             let dl = ui.get_foreground_draw_list();
             dl.add_rect([20.0, 20.0], [160.0, 40.0], ImColor32::BLACK)
@@ -272,6 +283,33 @@ pub fn windowing() {
                 .filled(true)
                 .build();
             
+            let depth_image = renderer.presenter.framebuffers[0].attachments()[1].image();
+
+            let mut builder = VkBuilder::new_multiple(renderer.vk.clone());
+
+            let cmd_buf = {
+                builder.0
+                    .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(
+                            depth_image.clone(), 
+                            dst.content.clone()
+                        )
+                    )
+                    .unwrap();
+
+                builder.command_buffer()
+            };
+
+            submit_cmd_buf(renderer.vk.clone(), cmd_buf)
+                .wait(None).unwrap();
+
+            dl.add_text(
+                [4.0 + x, 64.0 + y], 
+                ImColor32::WHITE, 
+                format!(
+                    "{:#?}", 
+                    depth_image
+                )
+            );
         }
 
         el.ui.draw(&mut renderer);
@@ -279,7 +317,23 @@ pub fn windowing() {
         let now = std::time::Instant::now();
         renderer.draw();
         elapsed = now.elapsed().as_secs_f32() * 1000.0;
-        renderer.presenter.recreate(renderer.vk.clone(), &el);
+        renderer.presenter.recreate(renderer.vk.clone(), &el, &mut renderer.pipelines);
+
+
+        if el.event_handler.key_just_pressed(glfw::Key::F) {
+            let result = dst.content.read().unwrap();
+            let mut u8_buffer: Vec<u8> = Vec::with_capacity(1200*900 * 4);
+
+            for &depth_value in result.iter() {
+                let normalized_value = ((depth_value as f32 / 65535.0) * 255.0) as u8;
+                u8_buffer.extend_from_slice(&[normalized_value, normalized_value, normalized_value, 255]);
+            }
+
+            let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1200, 900, &u8_buffer[..])
+                .unwrap();
+
+            image.save("depth.png").unwrap();
+        }
 
         if el.is_key_down(glfw::Key::LeftAlt) {
             el.window.set_cursor_mode(glfw::CursorMode::Normal);

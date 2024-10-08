@@ -92,10 +92,7 @@ impl ImGui {
             );
     
             let draw_data = self.ctx.render();
-    
-            /*  maybe just use a primary command buffer for imgui
-                instead of relying on this
-             */
+            
             for framebuffer in &framebuffers {
                 let mut builder = VkBuilder::new_secondary(
                     renderer.vk.clone(), 

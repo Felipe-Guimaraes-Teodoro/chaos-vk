@@ -140,7 +140,8 @@ fn main() {
         }
 
 
-        renderer.draw(&mut el);
+        renderer.draw();
+        renderer.presenter.recreate(renderer.vk.clone(), &el, &mut renderer.pipelines);
     }
 }
 

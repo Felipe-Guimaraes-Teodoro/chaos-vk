@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use glam::{Mat4, Quat, Vec3};
 use vulkano::{buffer::BufferContents, command_buffer::{CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo, CommandBufferInheritanceRenderPassType}, descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, pipeline::Pipeline, query::QueryPipelineStatisticFlags, render_pass::Framebuffer};
 
-use super::{super::{command::{CommandBufferType, SecondaryCmdBufType, VkBuilder}, pipeline::VkGraphicsPipeline}, camera::Camera};
+use super::{super::{command::{CommandBufferType, SecondaryCmdBufType, VkBuilder}, pipeline::{VkGraphicsPipeline, PipelineHandle}}, camera::Camera};
 use super::super::{shaders::graphics_pipeline, buffer::{VkBuffer, VkIterBuffer}, renderer::Renderer, vertex::Vertex, vk::Vk, presenter::FRAMES_IN_FLIGHT};
 
 type Mat = [[f32;4];4];
@@ -42,6 +42,8 @@ pub struct Mesh {
     pub vbo: VkIterBuffer<Vertex>,
     pub ebo: VkIterBuffer<u32>,
     pub cmds: Vec<Option<SecondaryCmdBufType>>,
+
+    pub pipeline_handle: Option<PipelineHandle>,
 }
 
 impl Mesh {
@@ -58,6 +60,8 @@ impl Mesh {
             vbo: VkIterBuffer::vertex(renderer.vk.allocators.clone(), vertices.to_vec()),
             ebo: VkIterBuffer::index(renderer.vk.allocators.clone(), indices.to_vec()),
             cmds: vec![None; *FRAMES_IN_FLIGHT],
+
+            pipeline_handle: None,
         }
     }
 
@@ -69,14 +73,26 @@ impl Mesh {
     /* TODO: this as a sec cmd buf */
     pub fn record_command_buffer(
         &mut self, 
-        pipeline: &VkGraphicsPipeline, 
+        pipelines: &HashMap<PipelineHandle, VkGraphicsPipeline>, 
         framebuffer: Arc<Framebuffer>, 
         vk: Arc<Vk>,
         camera: &Camera,
         i: usize
     ) {
-        let mut builder = VkBuilder::secondary_from_renderpass(vk.clone(), pipeline, framebuffer.clone());
+        let pipeline;
+        
+        if let Some(handle) = self.pipeline_handle {
+            pipeline = &pipelines[&handle];
+        } else {
+            pipeline = &pipelines[&PipelineHandle {id: 0}];
+        }
 
+        let mut builder = VkBuilder::secondary_from_renderpass(
+            vk.clone(), 
+            pipeline, 
+            framebuffer.clone()
+        );
+        
         builder
             .bind_pipeline_graphics(pipeline.graphics_pipeline.clone())
             .unwrap()
