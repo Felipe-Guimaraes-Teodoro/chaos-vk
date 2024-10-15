@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chaos_vk::graphics::{buffer::{VkBuffer, VkIterBuffer}, command::BuilderType, utils::descriptor_set, vertex::RVertex, vk::Vk};
+use chaos_vk::{graphics::{buffer::{VkBuffer, VkIterBuffer}, command::BuilderType, utils::descriptor_set, vertex::{InstanceData, RVertex}, vk::Vk}, util::math::{rand_betw, rand_vec3}};
 use glam::{Mat4, Quat, Vec3};
 use vulkano::{descriptor_set::WriteDescriptorSet, pipeline::{GraphicsPipeline, Pipeline}};
 
@@ -10,6 +10,7 @@ use super::shaders::vs;
 pub struct Mesh {
     pub vertices: Vec<RVertex>,
     pub indices: Vec<u32>,
+    pub instances: Vec<InstanceData>,
 
     pub position: Vec3,
     pub rotation: Quat,
@@ -17,14 +18,18 @@ pub struct Mesh {
     pub color: Vec3,
 
     pub vbo: VkIterBuffer<RVertex>,
+    pub ibo: VkIterBuffer<InstanceData>,
     pub ebo: VkIterBuffer<u32>,
 }
 
 impl Mesh {
     pub fn new(vk: Arc<Vk>, vertices: &Vec<RVertex>, indices: &Vec<u32>) -> Self {
+        let instances = vec![InstanceData {ofs: [0.0, 0.0, 0.0]}];
+
         Self {
             vertices: vertices.to_vec(),
             indices: indices.to_vec(),
+            instances: instances.to_vec(),
 
             position: Vec3::ZERO,
             rotation: Quat::default(),
@@ -33,6 +38,7 @@ impl Mesh {
 
             vbo: VkIterBuffer::vertex(vk.allocators.clone(), vertices.to_vec()),
             ebo: VkIterBuffer::index(vk.allocators.clone(), indices.to_vec()),
+            ibo: VkIterBuffer::vertex(vk.allocators.clone(), instances),
         }
     }
 
@@ -71,11 +77,13 @@ impl Mesh {
                     [WriteDescriptorSet::buffer(0, ubo.content.clone())]
                 ).0
             ).unwrap()
-            .bind_vertex_buffers(0, self.vbo.content.clone())
+            .bind_vertex_buffers(0, 
+                (self.vbo.content.clone(), self.ibo.content.clone())
+            )
             .unwrap()
             .bind_index_buffer(self.ebo.content.clone())
             .unwrap()
-            .draw_indexed(self.ebo.content.len() as u32, 1, 0, 0, 0)
+            .draw_indexed(self.ebo.content.len() as u32, self.ibo.content.len() as u32, 0, 0, 0)
             .unwrap();
     }
 }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, format::{ClearValue, Format}, image::{view::ImageView, Image, ImageCreateInfo, ImageUsage}, memory::allocator::AllocationCreateInfo, pipeline::{graphics::{color_blend::{ColorBlendAttachmentState, ColorBlendState}, depth_stencil::DepthStencilState, input_assembly::InputAssemblyState, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition}, viewport::{Viewport, ViewportState}, GraphicsPipelineCreateInfo}, layout::PipelineDescriptorSetLayoutCreateInfo, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass}, shader::ShaderModule, swapchain::Swapchain};
 
-use super::{command::SecondaryCmdBufType, vertex::RVertex, vk::Vk};
+use super::{command::SecondaryCmdBufType, vertex::{InstanceData, RVertex}, vk::Vk};
 
 /// All the data necessary for constructing a secondary renderpass
 pub struct VkSecRenderpass {
@@ -143,6 +143,61 @@ pub fn pipeline(
     let fs = fs.entry_point("main").unwrap();
 
     let vertex_input_state = RVertex::per_vertex()
+        .definition(&vs.info().input_interface)
+        .unwrap();
+
+    let stages = [
+        PipelineShaderStageCreateInfo::new(vs),
+        PipelineShaderStageCreateInfo::new(fs),
+    ];
+
+    let layout = PipelineLayout::new(
+        vk.device.clone(),
+        PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
+            .into_pipeline_layout_create_info(vk.device.clone())
+            .unwrap(),
+    )
+    .unwrap();
+
+    let subpass = Subpass::from(render_pass.clone(), 0).unwrap();
+
+    GraphicsPipeline::new(
+        vk.device.clone(),
+        None,
+        GraphicsPipelineCreateInfo {
+            stages: stages.into_iter().collect(),
+            vertex_input_state: Some(vertex_input_state),
+            input_assembly_state: Some(InputAssemblyState::default()),
+            viewport_state: Some(ViewportState {
+                viewports: [viewport].into_iter().collect(),
+                ..Default::default()
+            }),
+            rasterization_state: Some(RasterizationState::default()),
+            multisample_state: Some(MultisampleState::default()),
+            color_blend_state: Some(ColorBlendState::with_attachment_states(
+                subpass.num_color_attachments(),
+                ColorBlendAttachmentState::default(),
+            )),
+            subpass: Some(subpass.into()),
+            depth_stencil_state: Some(DepthStencilState::simple_depth_test()),
+            ..GraphicsPipelineCreateInfo::layout(layout)
+        },
+    )
+    .unwrap()
+}
+
+pub fn instancing_pipeline(
+    vk: Arc<Vk>,
+    vs: Arc<ShaderModule>,
+    fs: Arc<ShaderModule>,
+
+    render_pass: Arc<RenderPass>,
+    viewport: Viewport,
+) -> Arc<GraphicsPipeline> {
+    let vs = vs.entry_point("main").unwrap();
+    let fs = fs.entry_point("main").unwrap();
+
+    let vertex_input_state = [RVertex::per_vertex(), InstanceData::per_instance()]
         .definition(&vs.info().input_interface)
         .unwrap();
 

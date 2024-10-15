@@ -1,6 +1,5 @@
 use glam::{vec3, Mat4, Vec3};
 
-const SPEED: f32 = 2.0;
 const UP: Vec3 = Vec3::Y;
 const SENSITIVITY: f32 = 0.1; // todo: make this editable
 
@@ -19,6 +18,7 @@ pub struct Camera {
     pub view: Mat4,
 
     pub pos: Vec3,
+    pub goal: Vec3,
     _target: Vec3,
     direction: Vec3,
     pub right: Vec3,
@@ -61,6 +61,7 @@ impl Camera {
             view,
 
             pos,
+            goal: pos,
             _target: target,
             direction,
             right,
@@ -82,7 +83,9 @@ impl Camera {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, y: Vec3) {
+        self.pos = y;
+
         self.view = Mat4::look_at_rh(
             self.pos,
             self.pos + self.front,
@@ -165,24 +168,24 @@ impl Camera {
         self.front = Vec3::normalize(self.direction);
     }
 
-    pub fn move_according_to_input(&mut self) {
+    pub fn set_goal_according_to_input(&mut self) {
         if self.keymap[0] {
-            self.pos -= SPEED * self.dt * self.front;
+            self.goal -= self.speed * self.dt * self.front;
         }
         if self.keymap[1] {
-            self.pos += SPEED * self.dt * Vec3::cross(self.front, self.up);
+            self.goal += self.speed * self.dt * Vec3::cross(self.front, self.up);
         }
         if self.keymap[2] {
-            self.pos += SPEED * self.dt * self.front;
+            self.goal += self.speed * self.dt * self.front;
         }
         if self.keymap[3] {
-            self.pos -= SPEED * self.dt * Vec3::cross(self.front, self.up);
+            self.goal -= self.speed * self.dt * Vec3::cross(self.front, self.up);
         }
         if self.keymap[4] {
-            self.pos += SPEED * self.dt * self.up;
+            self.goal += self.speed * self.dt * self.up;
         }
         if self.keymap[5] {
-            self.pos -= SPEED * self.dt * self.up;
+            self.goal -= self.speed * self.dt * self.up;
         }
     }
 
