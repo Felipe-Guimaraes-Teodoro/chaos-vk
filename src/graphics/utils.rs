@@ -39,7 +39,7 @@ pub fn descriptor_set(
 
 pub fn framebuffers(
     rp: Arc<RenderPass>, 
-    images: &Vec<Arc<Image>>
+    images: &[Arc<Image>]
 ) -> Vec<Arc<Framebuffer>> {
     images
         .iter()

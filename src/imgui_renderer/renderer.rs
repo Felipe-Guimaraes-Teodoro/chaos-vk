@@ -20,7 +20,7 @@ use std::fmt;
 use imgui::{DrawVert, Textures, DrawCmd, DrawCmdParams, internal::RawWrapper, TextureId, ImString};
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex as VulkanoVertex};
 
-use crate::graphics::{buffer::VkIterBuffer, command::{submit_cmd_buf, SecBuilderType, VkBuilder}, utils::descriptor_set, vk::Vk};
+use crate::graphics::{buffer::VkIterBuffer, command::{submit_cmd_buf, SecBuilderType, VkBuilder}, utils::{descriptor_set, framebuffers}, vk::Vk};
 
 #[derive(Default, Debug, Clone, VulkanoVertex, BufferContents)]
 #[repr(C)]
@@ -44,10 +44,10 @@ pub enum RendererError {
 
 pub struct ImRenderer {
     pub render_pass: Arc<RenderPass>,
-    pipeline: Arc<GraphicsPipeline>,
-    font_texture: Arc<Image>,
-    textures: Textures<Image>,
-    format: Format,
+    pub pipeline: Arc<GraphicsPipeline>,
+    pub font_texture: Arc<Image>,
+    pub textures: Textures<Image>,
+    pub format: Format,
     pub subpass: Subpass,
 }
 

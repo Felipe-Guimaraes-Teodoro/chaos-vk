@@ -74,7 +74,6 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
                 &self.images,
             );
             
-            
             if self.window_resized {    
                 self.window_resized = false;
 

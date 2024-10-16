@@ -5,12 +5,12 @@ pub mod util;
 
 use std::{sync::Arc, time::Duration};
 
-use chaos_vk::graphics::{buffer::{VkBuffer, VkIterBuffer}, command::{CommandBufferType, VkBuilder}, mesh::mesh::Mesh, presenter::Presenter, utils::{descriptor_set, instancing_pipeline, render_pass_with_depth}, vertex::InstanceData, vk::Vk};
+use chaos_vk::{graphics::{buffer::{VkBuffer, VkIterBuffer}, command::{CommandBufferType, VkBuilder}, mesh::mesh::Mesh, presenter::Presenter, utils::{descriptor_set, instancing_pipeline, render_pass_with_depth}, vertex::InstanceData, vk::Vk}, imgui_renderer::{renderer::ImRenderer, ImGui}};
 use glam::Mat4;
 use scene_loader::{geometry::sphere, loader::Scene, renderer::Renderer, shaders::{self, vs}};
 use util::math::rand_betw;
-use vulkano::{command_buffer::{RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::WriteDescriptorSet, pipeline::{graphics::viewport::Viewport, GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
-use winit::{dpi::PhysicalSize, event::{DeviceEvent, Event, VirtualKeyCode, WindowEvent}, event_loop::EventLoop, window::{Icon, Theme}};
+use vulkano::{command_buffer::{RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::WriteDescriptorSet, format::Format, pipeline::{graphics::viewport::Viewport, GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
+use winit::{dpi::PhysicalSize, event::{DeviceEvent, Event, MouseScrollDelta, VirtualKeyCode, WindowEvent}, event_loop::EventLoop, window::{Icon, Theme}};
 
 fn main() {
     example();
@@ -36,8 +36,11 @@ fn example() {
     vk.window.set_inner_size(PhysicalSize::new(1200, 900));
     let size = vk.window.inner_size();
 
+    
     let mut presenter = Presenter::new(vk.clone());
     let mut renderer = Renderer::new();
+    let mut imgui = ImGui::new(vk.clone(), &presenter);
+
     renderer.camera.proj = Mat4::perspective_lh(
         80.0f32.to_radians(), 
         size.width as f32 / size.height as f32, 0.1, 1000.0
@@ -55,6 +58,7 @@ fn example() {
     });
 
     presenter.window_resized = true;
+    presenter.recreate(vk.clone(), rp.clone());
 
     let sphere = sphere(5, 1.0);
     renderer.meshes.push(Mesh::new(vk.clone(), &sphere.vertices, &sphere.indices));
@@ -90,11 +94,29 @@ fn example() {
                             Scene::write("assets/scene.cf", &renderer).expect("Failed to write scene");
                         }
 
-                        
                         if input.modifiers.ctrl() && input.virtual_keycode == Some(VirtualKeyCode::L) {
                             Scene::read("assets/scene.cf", &mut renderer, vk.clone()).expect("Failed to load scene");
                         }
+
+                        if input.modifiers.alt() {
+                            vk.window.set_cursor_visible(true);
+                        } else {
+                            vk.window.set_cursor_visible(false);
+                        }
                     },
+
+                    WindowEvent::CursorMoved { position, .. } => {
+                        imgui.on_mouse_move(position.x as f32, position.y as f32);
+                    }
+
+                    WindowEvent::MouseInput { button, state, .. } => {
+                        imgui.on_mouse_click(button, state);
+                    }
+
+                    WindowEvent::MouseWheel { delta: MouseScrollDelta::PixelDelta(pos), .. } => {
+                        imgui.on_mouse_scroll(pos.x as f32, pos.y as f32);
+                    }
+
                     _ => ()
                 }
             }
@@ -115,15 +137,20 @@ fn example() {
             Event::MainEventsCleared => {
                 let now = std::time::Instant::now();
 
+                let frame = imgui.frame(&vk.window);
+                frame.text("hello, world!");
+
                 presenter.cmd_bufs = get_cmd_bufs(
                     vk.clone(), 
                     &renderer,
-                    presenter.framebuffers.clone(), 
+                    &mut imgui,
+                    &presenter, 
                     pipeline.clone()
                 );
                 renderer.update(dt);
                 
                 presenter.recreate(vk.clone(), rp.clone());
+                
                 presenter.present(vk.clone());
 
                 
@@ -142,7 +169,8 @@ fn example() {
 pub fn get_cmd_bufs(
     vk: Arc<Vk>, 
     renderer: &Renderer,
-    framebuffers: Vec<Arc<Framebuffer>>,
+    imgui_renderer: &mut ImGui,
+    presenter: &Presenter,
     pipeline: Arc<GraphicsPipeline>,
 ) -> Vec<CommandBufferType> {
     let mut cmd_bufs: Vec<CommandBufferType> = vec![];
@@ -159,7 +187,13 @@ pub fn get_cmd_bufs(
         [WriteDescriptorSet::buffer(0, ubo.content.clone())]
     ).0;
 
-    for framebuffer in &framebuffers.clone() {
+    let render_passes = imgui_renderer.get_renderpasses(
+        presenter.images.clone(),
+        vk.clone()
+    );
+
+    let mut i = 0;
+    for framebuffer in &presenter.framebuffers.clone() {
         let mut builder = VkBuilder::new_multiple(vk.clone());
 
         builder.0
@@ -187,12 +221,32 @@ pub fn get_cmd_bufs(
         for mesh in &renderer.meshes {
             mesh.build_commands(vk.clone(), &mut builder.0, pipeline.clone());
         }
+
+        builder.0.end_render_pass(Default::default()).unwrap();
+
+        let render_pass = &render_passes[i];
+        builder.0.begin_render_pass(
+            RenderPassBeginInfo {
+                clear_values: vec![None],
+                render_pass: render_pass.rp.clone(),
+                ..RenderPassBeginInfo::framebuffer(render_pass.framebuffer.clone())
+            },
+            SubpassBeginInfo {
+                contents: SubpassContents::SecondaryCommandBuffers,
+                ..Default::default()
+            },
+        ).expect(&format!("failed to start imgui render pass on framebuffer {:?}", framebuffer));
+
+        builder.0.execute_commands(render_pass.cmd_buf.clone()).unwrap();
         
         builder.0.end_render_pass(Default::default()).unwrap();
+        
         
         cmd_bufs.push(
             builder.command_buffer()
         );
+
+        i += 1;
     }
 
     cmd_bufs
