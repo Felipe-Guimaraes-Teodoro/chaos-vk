@@ -36,7 +36,7 @@ pub struct Camera {
     last_x: f32,
     last_y: f32,
     
-    keymap: [bool; 6],
+    keymap: [bool; 7],
 }
 
 impl Camera {
@@ -79,7 +79,7 @@ impl Camera {
             last_x: 400.0,
             last_y: 400.0,
 
-            keymap: [false; 6],
+            keymap: [false; 7],
         }
     }
 
@@ -120,8 +120,11 @@ impl Camera {
                     Some(winit::event::VirtualKeyCode::Space) => {
                         self.keymap[4] = action;
                     },
-                    Some(winit::event::VirtualKeyCode::C) => {
+                    Some(winit::event::VirtualKeyCode::LControl) => {
                         self.keymap[5] = action;
+                    },
+                    Some(winit::event::VirtualKeyCode::LShift) => {
+                        self.keymap[6] = action;
                     },
                     _ => ()
                 }
@@ -169,23 +172,28 @@ impl Camera {
     }
 
     pub fn set_goal_according_to_input(&mut self) {
+        let mut speed = self.speed;
+        if self.keymap[6] {
+            speed = self.speed * 20.0;
+        }
+
         if self.keymap[0] {
-            self.goal -= self.speed * self.dt * self.front;
+            self.goal -= speed * self.dt * self.front;
         }
         if self.keymap[1] {
-            self.goal += self.speed * self.dt * Vec3::cross(self.front, self.up);
+            self.goal += speed * self.dt * Vec3::cross(self.front, self.up);
         }
         if self.keymap[2] {
-            self.goal += self.speed * self.dt * self.front;
+            self.goal += speed * self.dt * self.front;
         }
         if self.keymap[3] {
-            self.goal -= self.speed * self.dt * Vec3::cross(self.front, self.up);
+            self.goal -= speed * self.dt * Vec3::cross(self.front, self.up);
         }
         if self.keymap[4] {
-            self.goal += self.speed * self.dt * self.up;
+            self.goal += speed * self.dt * self.up;
         }
         if self.keymap[5] {
-            self.goal -= self.speed * self.dt * self.up;
+            self.goal -= speed * self.dt * self.up;
         }
     }
 

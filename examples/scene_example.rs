@@ -1,12 +1,14 @@
 #![allow(deprecated)]
 
 mod scene_loader;
+pub mod util;
 
-use std::{sync::Arc, thread::sleep_ms};
+use std::{sync::Arc, time::Duration};
 
-use chaos_vk::{graphics::{buffer::{VkBuffer, VkIterBuffer}, command::{CommandBufferType, VkBuilder}, presenter::Presenter, utils::{descriptor_set, instancing_pipeline, pipeline, render_pass_with_depth}, vertex::InstanceData, vk::Vk}, util::math::rand_betw};
+use chaos_vk::graphics::{buffer::{VkBuffer, VkIterBuffer}, command::{CommandBufferType, VkBuilder}, mesh::mesh::Mesh, presenter::Presenter, utils::{descriptor_set, instancing_pipeline, render_pass_with_depth}, vertex::InstanceData, vk::Vk};
 use glam::Mat4;
-use scene_loader::{geometry::sphere, loader::Scene, mesh::Mesh, renderer::Renderer, shaders::{self, vs}};
+use scene_loader::{geometry::sphere, loader::Scene, renderer::Renderer, shaders::{self, vs}};
+use util::math::rand_betw;
 use vulkano::{command_buffer::{RenderPassBeginInfo, SubpassBeginInfo, SubpassContents}, descriptor_set::WriteDescriptorSet, pipeline::{graphics::viewport::Viewport, GraphicsPipeline, Pipeline}, render_pass::Framebuffer};
 use winit::{dpi::PhysicalSize, event::{DeviceEvent, Event, VirtualKeyCode, WindowEvent}, event_loop::EventLoop, window::{Icon, Theme}};
 
@@ -60,8 +62,6 @@ fn example() {
     let mut cursor_x = 0.0;
     let mut cursor_y = 0.0;
 
-    let mut frame_i = 0;
-
     let data = (0..250).map(|_| { InstanceData {
             ofs: [rand_betw(-100.0, 100.0), rand_betw(-10.0, 10.0), rand_betw(-100.0, 100.0)]
         }
@@ -69,6 +69,8 @@ fn example() {
     renderer.meshes[0].instances = data.clone();
     let instance_buffer = VkIterBuffer::vertex(vk.allocators.clone(), data);
     renderer.meshes[0].ibo = instance_buffer;
+
+    let mut dt = 0.0;
 
     el.run(move |event, _target, control_flow| {
         match event {
@@ -111,33 +113,22 @@ fn example() {
             }
 
             Event::MainEventsCleared => {
-                if frame_i % 6 == 0 {
-                    vk.window.set_window_icon({
-                        let w = 8;
-                        let h = 8;
-                
-                        Some(Icon::from_rgba(
-                            (0..w*h*4).map(|_| rand_betw(0, 255)).collect(), 
-                            w, 
-                            h
-                        ).unwrap())
-                    });
-                }
-                vk.window.set_theme(Some(Theme::Dark));
+                let now = std::time::Instant::now();
 
-                renderer.update();
                 presenter.cmd_bufs = get_cmd_bufs(
                     vk.clone(), 
                     &renderer,
                     presenter.framebuffers.clone(), 
                     pipeline.clone()
                 );
+                renderer.update(dt);
                 
                 presenter.recreate(vk.clone(), rp.clone());
                 presenter.present(vk.clone());
 
-                sleep_ms(12); /* let's just assume that rendering a frame takes no time at all*/
-                frame_i += 1;
+                
+                std::thread::sleep(Duration::from_millis(12).saturating_sub(now.elapsed()));
+                dt = now.elapsed().as_secs_f32();
             }
 
             Event::LoopDestroyed => {

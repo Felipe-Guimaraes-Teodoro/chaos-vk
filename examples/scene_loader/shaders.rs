@@ -6,7 +6,7 @@ pub mod vs {
 
             layout(location = 0) in vec3 pos;
 
-            layout (location = 1) in vec3 ofs; // instance data
+            layout (location = 1) in vec3 ofs; // per instance
 
             layout(set = 0, binding = 0) uniform Camera {
                 mat4 view;
@@ -17,8 +17,12 @@ pub mod vs {
                 mat4 model;
             };
 
+            layout(location = 0) out vec4 o_pos;
+
             void main() {
                 gl_Position = proj * view * model * vec4(pos + ofs, 1.0);
+
+                o_pos = vec4(pos + ofs, 1.0);
             }
         ",
     }
@@ -32,8 +36,10 @@ pub mod fs {
 
             layout(location = 0) out vec4 f_color;
 
+            layout(location = 0) in vec4 i_pos;
+
             void main() {
-                f_color = vec4(0.8, 0.2, 0.2, 1.0);
+                f_color = vec4(i_pos.xyz / 10.0, 1.0);
             }
         ",
     }

@@ -1,10 +1,10 @@
 use std::{fs::File, io::Write, sync::Arc};
 
-use chaos_vk::graphics::{buffer::VkIterBuffer, vertex::{InstanceData, RVertex}, vk::Vk};
+use chaos_vk::graphics::{buffer::VkIterBuffer, mesh::mesh::Mesh, vertex::{InstanceData, PosVertex}, vk::Vk};
 use glam::{quat, vec3};
 use serde::{Deserialize, Serialize};
 
-use super::{mesh::Mesh, renderer::Renderer};
+use super::renderer::Renderer;
 
 #[derive(Serialize, Deserialize)]
 pub struct MeshData {
@@ -19,8 +19,8 @@ pub struct MeshData {
 
 impl MeshData {
     pub fn to_mesh(&self, vk: Arc<Vk>) -> Mesh {
-        let vertices: Vec<RVertex> = self.verts.iter().map(|v| {
-            RVertex { pos: *v }
+        let vertices: Vec<PosVertex> = self.verts.iter().map(|v| {
+            PosVertex { pos: *v }
         }).collect();
 
         let instances: Vec<InstanceData> = self.instances.iter().map(|i| {

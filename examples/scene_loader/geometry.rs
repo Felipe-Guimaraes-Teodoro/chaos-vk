@@ -1,10 +1,9 @@
-#![allow(unused)]
+// #![allow(unused)]
 
-use chaos_vk::graphics::vertex::RVertex;
-use glam::{vec2, vec3, Vec2};
+use chaos_vk::graphics::vertex::PosVertex;
 
 pub struct GeometryData {
-    pub vertices: Vec<RVertex>,
+    pub vertices: Vec<PosVertex>,
     pub indices: Vec<u32>,
 }
 
@@ -27,12 +26,12 @@ pub fn sphere(iterations: usize, radius: f32) -> GeometryData {
             let y = cos_theta * radius;
             let z = sin_phi * sin_theta * radius;
 
-            let s = lon as f32 / iterations as f32;
-            let t = 1.0 - (lat as f32 / iterations as f32);
+            // let s = lon as f32 / iterations as f32;
+            // let t = 1.0 - (lat as f32 / iterations as f32);
 
-            let normal = vec3(x, y, z).normalize();
+            // let normal = vec3(x, y, z).normalize();
 
-            vertices.push(RVertex {
+            vertices.push(PosVertex {
                 pos: [x, y, z],
             });
         }

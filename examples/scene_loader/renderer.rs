@@ -1,14 +1,13 @@
-use chaos_vk::{graphics::camera::Camera, util::math::SecondOrderDynamics};
+use chaos_vk::graphics::{camera::Camera, mesh::mesh::Mesh};
 use glam::Vec3;
 
-use super::mesh::Mesh;
+use crate::util::math::SecondOrderDynamics;
 
 pub struct Renderer {
     pub camera: Camera,
     pub cam_sod: SecondOrderDynamics<Vec3>,
 
     pub meshes: Vec<Mesh>,
-
 }
 
 impl Renderer {
@@ -22,8 +21,8 @@ impl Renderer {
         }
     }
 
-    pub fn update(&mut self) {
-        self.camera.dt = 0.016;
+    pub fn update(&mut self, dt: f32) {
+        self.camera.dt = dt;
         self.camera.set_goal_according_to_input();
         let y = self.cam_sod.update(self.camera.dt, self.camera.goal);
         self.camera.update(y);

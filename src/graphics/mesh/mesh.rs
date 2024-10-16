@@ -1,14 +1,19 @@
 use std::sync::Arc;
 
-use chaos_vk::{graphics::{buffer::{VkBuffer, VkIterBuffer}, command::BuilderType, utils::descriptor_set, vertex::{InstanceData, RVertex}, vk::Vk}, util::math::{rand_betw, rand_vec3}};
 use glam::{Mat4, Quat, Vec3};
-use vulkano::{descriptor_set::WriteDescriptorSet, pipeline::{GraphicsPipeline, Pipeline}};
+use vulkano::{buffer::BufferContents, descriptor_set::WriteDescriptorSet, pipeline::{GraphicsPipeline, Pipeline}};
 
-use super::shaders::vs;
+use crate::graphics::{buffer::{VkBuffer, VkIterBuffer}, command::BuilderType, utils::descriptor_set, vertex::{InstanceData, PosVertex}, vk::Vk};
+
+#[derive(BufferContents, Clone, Copy)]
+#[repr(C)]
+pub struct Model {
+    model: [[f32;4];4]
+}
 
 #[derive(Clone)]
 pub struct Mesh {
-    pub vertices: Vec<RVertex>,
+    pub vertices: Vec<PosVertex>,
     pub indices: Vec<u32>,
     pub instances: Vec<InstanceData>,
 
@@ -17,13 +22,14 @@ pub struct Mesh {
     pub scale: Vec3,
     pub color: Vec3,
 
-    pub vbo: VkIterBuffer<RVertex>,
+    pub vbo: VkIterBuffer<PosVertex>,
     pub ibo: VkIterBuffer<InstanceData>,
     pub ebo: VkIterBuffer<u32>,
 }
 
+
 impl Mesh {
-    pub fn new(vk: Arc<Vk>, vertices: &Vec<RVertex>, indices: &Vec<u32>) -> Self {
+    pub fn new(vk: Arc<Vk>, vertices: &Vec<PosVertex>, indices: &Vec<u32>) -> Self {
         let instances = vec![InstanceData {ofs: [0.0, 0.0, 0.0]}];
 
         Self {
@@ -56,13 +62,20 @@ impl Mesh {
         model_matrix.to_cols_array_2d()
     }
 
-    pub fn get_ubo(&self, vk: Arc<Vk>) -> VkBuffer<vs::Model> {
-        VkBuffer::uniform(vk.allocators.clone(), vs::Model {
+    pub fn get_ubo(&self, vk: Arc<Vk>) -> VkBuffer<Model> {
+        VkBuffer::uniform(vk.allocators.clone(), Model {
             model: self.get_model(),
         })
     }
 
     /// Warning: this function assumes a graphics pipeline has already been bounded
+    /// 
+    /// On the shaders, it assumes:
+    /// ```glsl
+    /// layout(set = 1, binding = 0) uniform Model { 
+    ///     mat4 model;
+    /// };
+    /// ```
     pub fn build_commands(&self, vk: Arc<Vk>, builder: &mut BuilderType, pipeline: Arc<GraphicsPipeline>) {
         let ubo = self.get_ubo(vk.clone());
         builder

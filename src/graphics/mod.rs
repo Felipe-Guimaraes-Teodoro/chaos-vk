@@ -5,3 +5,4 @@ pub mod utils;
 pub mod presenter;
 pub mod vertex;
 pub mod camera;
+pub mod mesh;
