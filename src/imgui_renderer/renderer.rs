@@ -20,7 +20,7 @@ use std::fmt;
 use imgui::{DrawVert, Textures, DrawCmd, DrawCmdParams, internal::RawWrapper, TextureId, ImString};
 use vulkano::{buffer::BufferContents, pipeline::graphics::vertex_input::Vertex as VulkanoVertex};
 
-use crate::graphics::{buffer::VkIterBuffer, command::{submit_cmd_buf, SecBuilderType, VkBuilder}, utils::{descriptor_set, framebuffers}, vk::Vk};
+use crate::graphics::{buffer::VkIterBuffer, command::{submit_cmd_buf, SecBuilderType, VkBuilder}, image::VkImage, utils::{descriptor_set, framebuffers}, vk::Vk};
 
 #[derive(Default, Debug, Clone, VulkanoVertex, BufferContents)]
 #[repr(C)]
@@ -127,7 +127,7 @@ impl ImRenderer {
 
         let textures = Textures::new();
 
-        let font_texture = Self::upload_font_texture(format, ctx.fonts().build_rgba32_texture(), vk.allocators.memory.clone(), vk.clone());
+        let font_texture = Self::upload_font_texture(format, ctx.fonts().build_rgba32_texture(), vk.clone());
 
         // ctx.set_renderer_name(Some(ImString::from(format!("imgui-vulkano-renderer {}", env!("CARGO_PKG_VERSION")))));
 
@@ -300,7 +300,7 @@ impl ImRenderer {
         vk: Arc<Vk>,
         _queue : Arc<Queue>,
     ) {
-        let upload_font_texture = Self::upload_font_texture(self.format, ctx.fonts().build_rgba32_texture(), vk.allocators.memory.clone(), vk.clone()); 
+        let upload_font_texture = Self::upload_font_texture(self.format, ctx.fonts().build_rgba32_texture(), vk.clone()); 
         self.font_texture = upload_font_texture;
     }
     
@@ -311,46 +311,13 @@ impl ImRenderer {
     fn upload_font_texture(
         format: Format,
         fonts: imgui::FontAtlasTexture,
-        allocator: Arc<dyn MemoryAllocator>,
         vk: Arc<Vk>,
     ) -> Arc<Image> {
-        let image = Image::new(
-            allocator.clone(),
-            ImageCreateInfo {
-                image_type: ImageType::Dim2d,
-                format: format,
-                extent: [fonts.width, fonts.height, 1],
-                usage: ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_HOST,
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        let image = VkImage::sampler_host(vk.allocators.clone(), format, [fonts.width, fonts.height, 1]);
 
-        let mut builder = VkBuilder::new_multiple(vk.clone());
-
-        let buffer = VkIterBuffer::transfer_src(
-            vk.allocators.clone(), 
-            (0..(fonts.width*fonts.height*4)).map(|i| {
-                fonts.data[i as usize]
-            }),
-        );
-
-        builder.0
-            .copy_buffer_to_image(
-                CopyBufferToImageInfo::buffer_image(buffer.content.clone(), image.clone())
-            )
-            .unwrap();
-
-        let cmd_buf = builder.command_buffer();
+        image.copy_buffer_to_image(vk.clone(), fonts.data);
         
-        let fut = submit_cmd_buf(vk.clone(), cmd_buf);
-        fut.wait(None).unwrap();
-
-        image
+        image.content
     }
 
     fn lookup_texture(&self) -> Option<Arc<ImageView>> {

@@ -3,7 +3,7 @@
 mod scene_loader;
 pub mod util;
 
-use std::{sync::Arc, time::Duration};
+use std::{sync::Arc, thread::sleep, time::Duration};
 
 use chaos_vk::{graphics::{buffer::{VkBuffer, VkIterBuffer}, command::{CommandBufferType, VkBuilder}, mesh::mesh::Mesh, presenter::Presenter, utils::{descriptor_set, instancing_pipeline, render_pass_with_depth}, vertex::InstanceData, vk::Vk}, imgui_renderer::ImGui};
 use glam::Mat4;
@@ -51,7 +51,7 @@ fn example() {
 
     let rp = render_pass_with_depth(vk.clone(), Some(presenter.swapchain.clone()));
 
-    let pipeline = instancing_pipeline(vk.clone(), vs, fs, rp.clone(), Viewport {
+    let pipeline = instancing_pipeline(vk.clone(), vs.clone(), fs.clone(), rp.clone(), Viewport {
         offset: [0.0, 0.0],
         extent: size.into(),
         depth_range: 0.0..=1.0,
@@ -77,6 +77,8 @@ fn example() {
     let mut dt = 0.0;
 
     el.run(move |event, _target, control_flow| {
+        control_flow.set_poll();
+
         match event {
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 control_flow.set_exit();
@@ -98,11 +100,7 @@ fn example() {
                             Scene::read("assets/scene.cf", &mut renderer, vk.clone()).expect("Failed to load scene");
                         }
 
-                        if input.modifiers.alt() {
-                            vk.window.set_cursor_visible(true);
-                        } else {
-                            vk.window.set_cursor_visible(false);
-                        }
+                       vk.window.set_cursor_visible(input.modifiers.alt());
                     },
 
                     WindowEvent::CursorMoved { position, .. } => {
@@ -136,10 +134,14 @@ fn example() {
 
             Event::MainEventsCleared => {
                 let now = std::time::Instant::now();
-
+                
                 let frame = imgui.frame(&vk.window);
                 frame.text("hello, world!");
+                frame.text(format!("dt:{:.1}", dt*1000.0));
+                
+                presenter.recreate(vk.clone(), rp.clone());
 
+                renderer.update(dt);
                 presenter.cmd_bufs = get_cmd_bufs(
                     vk.clone(), 
                     &renderer,
@@ -147,20 +149,14 @@ fn example() {
                     &presenter, 
                     pipeline.clone()
                 );
-                renderer.update(dt);
-                
-                presenter.recreate(vk.clone(), rp.clone());
                 
                 presenter.present(vk.clone());
-
                 
-                std::thread::sleep(Duration::from_millis(12).saturating_sub(now.elapsed()));
+                sleep(Duration::from_millis(16).saturating_sub(Duration::from_millis((dt * 1000.0) as u64)));
                 dt = now.elapsed().as_secs_f32();
             }
 
-            Event::LoopDestroyed => {
-                
-            }
+            Event::LoopDestroyed => {println!("EXIT");}
             _ => {}
         }
     });

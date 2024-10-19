@@ -163,7 +163,7 @@ pub fn swapchain(
             image_format,
             present_mode: vulkano::swapchain::PresentMode::Immediate,
             image_extent: size.into(),
-            image_usage: ImageUsage::COLOR_ATTACHMENT,
+            image_usage: ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC,
             composite_alpha,
             ..Default::default()
         },

@@ -16,7 +16,7 @@ impl Renderer {
         camera.speed = 8.0;
         Self {
             camera,
-            cam_sod: SecondOrderDynamics::new(2.75, 0.75, 0.0, camera.pos),
+            cam_sod: SecondOrderDynamics::new(3.5, 0.8, 0.0, camera.pos),
             meshes: vec![],
         }
     }

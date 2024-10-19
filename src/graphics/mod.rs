@@ -6,3 +6,4 @@ pub mod presenter;
 pub mod vertex;
 pub mod camera;
 pub mod mesh;
+pub mod image;
