@@ -5,7 +5,7 @@ pub mod util;
 
 use std::{sync::Arc, thread::sleep, time::Duration};
 
-use chaos_vk::{graphics::{buffer::{VkBuffer, VkIterBuffer}, command::{CommandBufferType, VkBuilder}, mesh::mesh::Mesh, presenter::Presenter, utils::{descriptor_set, instancing_pipeline, render_pass_with_depth}, vertex::InstanceData, vk::Vk}, imgui_renderer::ImGui};
+use chaos_vk::{graphics::{buffer::{VkBuffer, VkIterBuffer}, command::{CommandBufferType, VkBuilder}, mesh::mesh::Mesh, presenter::Presenter, utils::{descriptor_set, instancing_pipeline, render_pass_with_depth}, vertex::PosInstanceData, vk::Vk}, imgui_renderer::ImGui};
 use glam::Mat4;
 use scene_loader::{geometry::sphere, loader::Scene, renderer::Renderer, shaders::{self, vs}};
 use util::math::rand_betw;
@@ -66,10 +66,10 @@ fn example() {
     let mut cursor_x = 0.0;
     let mut cursor_y = 0.0;
 
-    let data = (0..250).map(|_| { InstanceData {
+    let data = (0..250).map(|_| { PosInstanceData {
             ofs: [rand_betw(-100.0, 100.0), rand_betw(-10.0, 10.0), rand_betw(-100.0, 100.0)]
         }
-    }).collect::<Vec<InstanceData>>();
+    }).collect::<Vec<PosInstanceData>>();
     renderer.meshes[0].instances = data.clone();
     let instance_buffer = VkIterBuffer::vertex(vk.allocators.clone(), data);
     renderer.meshes[0].ibo = instance_buffer;

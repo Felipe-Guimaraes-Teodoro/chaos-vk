@@ -10,7 +10,7 @@ pub struct PosVertex {
 
 #[derive(BufferContents, Clone, Copy, Vertex)]
 #[repr(C)]
-pub struct InstanceData {
+pub struct PosInstanceData {
     #[format(R32G32B32_SFLOAT)]
     pub ofs: [f32; 3],
 }

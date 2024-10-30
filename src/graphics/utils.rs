@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use vulkano::{descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet}, format::{ClearValue, Format}, image::{view::ImageView, Image, ImageCreateInfo, ImageUsage}, memory::allocator::AllocationCreateInfo, pipeline::{graphics::{color_blend::{ColorBlendAttachmentState, ColorBlendState}, depth_stencil::DepthStencilState, input_assembly::InputAssemblyState, multisample::MultisampleState, rasterization::RasterizationState, vertex_input::{Vertex, VertexDefinition}, viewport::{Viewport, ViewportState}, GraphicsPipelineCreateInfo}, layout::PipelineDescriptorSetLayoutCreateInfo, GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo}, render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass}, shader::ShaderModule, swapchain::Swapchain};
 
-use super::{command::SecondaryCmdBufType, image::VkImage, vertex::{InstanceData, PosVertex}, vk::Vk};
+use super::{command::SecondaryCmdBufType, image::VkImage, vertex::{PosInstanceData, PosVertex}, vk::Vk};
 
 /// All the data necessary for constructing a secondary renderpass
 pub struct VkSecRenderpass {
@@ -187,7 +187,7 @@ pub fn instancing_pipeline(
     let vs = vs.entry_point("main").unwrap();
     let fs = fs.entry_point("main").unwrap();
 
-    let vertex_input_state = [PosVertex::per_vertex(), InstanceData::per_instance()]
+    let vertex_input_state = [PosVertex::per_vertex(), PosInstanceData::per_instance()]
         .definition(&vs.info().input_interface)
         .unwrap();
 

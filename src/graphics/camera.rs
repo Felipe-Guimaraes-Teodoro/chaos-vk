@@ -20,7 +20,7 @@ pub struct Camera {
     pub pos: Vec3,
     pub goal: Vec3,
     _target: Vec3,
-    direction: Vec3,
+    pub direction: Vec3,
     pub right: Vec3,
     pub front: Vec3,
     pub up: Vec3,
@@ -32,11 +32,11 @@ pub struct Camera {
 
     pub dt: f32,
 
-    first_mouse: bool,
-    last_x: f32,
-    last_y: f32,
+    pub first_mouse: bool,
+    pub last_x: f32,
+    pub last_y: f32,
     
-    keymap: [bool; 7],
+    pub keymap: [bool; 7],
 }
 
 impl Camera {

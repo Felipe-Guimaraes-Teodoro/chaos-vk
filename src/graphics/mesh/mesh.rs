@@ -3,7 +3,7 @@ use std::sync::Arc;
 use glam::{Mat4, Quat, Vec3};
 use vulkano::{buffer::BufferContents, descriptor_set::WriteDescriptorSet, pipeline::{GraphicsPipeline, Pipeline}};
 
-use crate::graphics::{buffer::{VkBuffer, VkIterBuffer}, command::BuilderType, utils::descriptor_set, vertex::{InstanceData, PosVertex}, vk::Vk};
+use crate::graphics::{buffer::{VkBuffer, VkIterBuffer}, command::BuilderType, utils::descriptor_set, vertex::{PosInstanceData, PosVertex}, vk::Vk};
 
 #[derive(BufferContents, Clone, Copy)]
 #[repr(C)]
@@ -15,7 +15,7 @@ pub struct Model {
 pub struct Mesh {
     pub vertices: Vec<PosVertex>,
     pub indices: Vec<u32>,
-    pub instances: Vec<InstanceData>,
+    pub instances: Vec<PosInstanceData>,
 
     pub position: Vec3,
     pub rotation: Quat,
@@ -23,14 +23,14 @@ pub struct Mesh {
     pub color: Vec3,
 
     pub vbo: VkIterBuffer<PosVertex>,
-    pub ibo: VkIterBuffer<InstanceData>,
+    pub ibo: VkIterBuffer<PosInstanceData>,
     pub ebo: VkIterBuffer<u32>,
 }
 
 
 impl Mesh {
     pub fn new(vk: Arc<Vk>, vertices: &Vec<PosVertex>, indices: &Vec<u32>) -> Self {
-        let instances = vec![InstanceData {ofs: [0.0, 0.0, 0.0]}];
+        let instances = vec![PosInstanceData {ofs: [0.0, 0.0, 0.0]}];
 
         Self {
             vertices: vertices.to_vec(),

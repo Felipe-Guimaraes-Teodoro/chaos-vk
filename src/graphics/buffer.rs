@@ -124,6 +124,25 @@ impl<T: BufferContents> VkBuffer<T> {
             content: buffer,
         }
     }
+
+    pub fn indirect(allocators: Arc<MemAllocators>, data: T) -> Self {
+        let buffer  = Buffer::from_data(
+            allocators.memory.clone(), 
+            BufferCreateInfo {
+                usage: BufferUsage::INDIRECT_BUFFER,
+                ..Default::default()
+            }, 
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            data,
+        ).expect("failed to create indirect buffer");
+
+        Self {
+            content: buffer.clone(),
+        }
+    }
 }
 
 #[derive(Clone)]

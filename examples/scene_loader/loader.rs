@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write, sync::Arc};
 
-use chaos_vk::graphics::{buffer::VkIterBuffer, mesh::mesh::Mesh, vertex::{InstanceData, PosVertex}, vk::Vk};
+use chaos_vk::graphics::{buffer::VkIterBuffer, mesh::mesh::Mesh, vertex::{PosInstanceData, PosVertex}, vk::Vk};
 use glam::{quat, vec3};
 use serde::{Deserialize, Serialize};
 
@@ -23,8 +23,8 @@ impl MeshData {
             PosVertex { pos: *v }
         }).collect();
 
-        let instances: Vec<InstanceData> = self.instances.iter().map(|i| {
-            InstanceData {ofs: *i}
+        let instances: Vec<PosInstanceData> = self.instances.iter().map(|i| {
+            PosInstanceData {ofs: *i}
         }).collect();
 
         let position = vec3(self.pos[0], self.pos[1], self.pos[2]);
