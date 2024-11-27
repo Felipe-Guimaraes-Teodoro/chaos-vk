@@ -4,6 +4,7 @@ use crate::graphics::utils::framebuffers_with_depth;
 
 use super::vk::{swapchain, Vk};
 use vulkano::{command_buffer::CommandBufferExecFuture, image::Image, render_pass::{Framebuffer, RenderPass}, swapchain::{self, PresentFuture, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo}, sync::{self, future::{FenceSignalFuture, JoinFuture}, GpuFuture}, Validated, VulkanError};
+use winit::window::Window;
 
 use super::command::CommandBufferType;
 
@@ -25,8 +26,8 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
  }
 
  impl Presenter {
-    pub fn new(vk: Arc<Vk>) -> Self {
-        let (swapchain, images) = swapchain(vk.clone());
+    pub fn new(vk: Arc<Vk>, window: Arc<Window>) -> Self {
+        let (swapchain, images) = swapchain(vk.clone(), window);
     
         let frames_in_flight = images.len();
 
@@ -51,12 +52,13 @@ type Fence = Arc<FenceSignalFuture<PresentFuture<CommandBufferExecFuture<JoinFut
         &mut self, 
         vk: Arc<Vk>, 
         rp: Arc<RenderPass>,
+        window: Arc<Window>,
 
     ) {
         if self.window_resized || self.recreate_swapchain {
             self.recreate_swapchain = false;
 
-            let size = vk.window.inner_size();
+            let size = window.inner_size();
 
             let (new_swapchain, new_images) = self.swapchain
                 .recreate(SwapchainCreateInfo {

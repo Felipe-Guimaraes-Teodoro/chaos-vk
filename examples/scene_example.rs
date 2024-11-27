@@ -18,11 +18,11 @@ fn main() {
 
 fn example() {
     let el = EventLoop::new();
-    let vk = Vk::new(&el);
-    vk.window.set_cursor_grab(winit::window::CursorGrabMode::Confined).unwrap();
-    vk.window.set_cursor_visible(false);
-    vk.window.set_title("CHAOS-VK");
-    vk.window.set_window_icon({
+    let (vk, window) = Vk::new(&el);
+    window.set_cursor_grab(winit::window::CursorGrabMode::Confined).unwrap();
+    window.set_cursor_visible(false);
+    window.set_title("CHAOS-VK");
+    window.set_window_icon({
         let w = 8;
         let h = 8;
 
@@ -32,12 +32,12 @@ fn example() {
             h
         ).unwrap())
     });
-    vk.window.set_theme(Some(Theme::Dark));
-    vk.window.set_inner_size(PhysicalSize::new(1200, 900));
-    let size = vk.window.inner_size();
+    window.set_theme(Some(Theme::Dark));
+    window.set_inner_size(PhysicalSize::new(1200, 900));
+    let size = window.inner_size();
 
     
-    let mut presenter = Presenter::new(vk.clone());
+    let mut presenter = Presenter::new(vk.clone(), window.clone());
     let mut renderer = Renderer::new();
     let mut imgui = ImGui::new(vk.clone(), &presenter);
 
@@ -58,7 +58,7 @@ fn example() {
     });
 
     presenter.window_resized = true;
-    presenter.recreate(vk.clone(), rp.clone());
+    presenter.recreate(vk.clone(), rp.clone(), window.clone());
 
     let sphere = sphere(5, 1.0);
     renderer.meshes.push(Mesh::new(vk.clone(), &sphere.vertices, &sphere.indices));
@@ -100,7 +100,7 @@ fn example() {
                             Scene::read("assets/scene.cf", &mut renderer, vk.clone()).expect("Failed to load scene");
                         }
 
-                       vk.window.set_cursor_visible(input.modifiers.alt());
+                       window.set_cursor_visible(input.modifiers.alt());
                     },
 
                     WindowEvent::CursorMoved { position, .. } => {
@@ -135,11 +135,11 @@ fn example() {
             Event::MainEventsCleared => {
                 let now = std::time::Instant::now();
                 
-                let frame = imgui.frame(&vk.window);
+                let frame = imgui.frame(&window);
                 frame.text("hello, world!");
                 frame.text(format!("dt:{:.1}", dt*1000.0));
                 
-                presenter.recreate(vk.clone(), rp.clone());
+                presenter.recreate(vk.clone(), rp.clone(), window.clone());
 
                 renderer.update(dt);
                 presenter.cmd_bufs = get_cmd_bufs(

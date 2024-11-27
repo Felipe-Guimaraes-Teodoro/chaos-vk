@@ -51,13 +51,12 @@ pub struct Vk {
     pub allocators: Arc<MemAllocators>,
     pub instance: Arc<Instance>,
     pub surface: Arc<Surface>,
-    pub window: Arc<Window>,
+    //pub window: Arc<Window>,
 }
 
 impl Vk {
-    pub fn new(el: &EventLoop<()>) -> Arc<Self> {     
+    pub fn new(el: &EventLoop<()>) -> (Arc<Self>, Arc<Window>) {     
         let library = VulkanLibrary::new().expect("no local Vulkan library/DLL");
-
         
         let required_extensions = Surface::required_extensions(el);
         let instance = Instance::new(
@@ -125,7 +124,7 @@ impl Vk {
     
         let queue = queues.next().unwrap();
 
-        Arc::new(Self {
+        (Arc::new(Self {
             queue,
             physical_device,
             device,
@@ -133,19 +132,18 @@ impl Vk {
             allocators: Arc::new(allocators),
             instance: instance,
             surface,
-            window,
-        })
+        }), window)
     }
 }
 
 pub fn swapchain(
-    vk: Arc<Vk>,
+    vk: Arc<Vk>, window: Arc<Window>
 ) -> (Arc<vulkano::swapchain::Swapchain>, Vec<Arc<vulkano::image::Image>>) {
     let caps = vk.physical_device
         .surface_capabilities(&vk.surface, Default::default())
         .expect("failed to get surface caps");
 
-    let size = vk.window.inner_size();
+    let size = window.inner_size();
     let composite_alpha = caps.supported_composite_alpha
         .into_iter()
         .next()
